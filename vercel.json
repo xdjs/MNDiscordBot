@@ -1,6 +1,4 @@
 {
   "version": 2,
-  "builds": [
-    { "src": "MNDiscordBot/api/**/*.ts", "use": "@vercel/node" }
-  ]
+  "builds": [{ "src": "api/**/*.ts", "use": "@vercel/node" }]
 }
