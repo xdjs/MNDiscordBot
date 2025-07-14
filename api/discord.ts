@@ -19,6 +19,8 @@ const spotifyClientSecret = process.env.SPOTIFY_CLIENT_SECRET!;
 const spotifyRedirectUri = process.env.SPOTIFY_REDIRECT_URI ||
   'https://YOUR_VERCEL_DOMAIN/api/spotify/callback';
 
+const LISTEN_HOOK_URL = process.env.LISTEN_HOOK_URL;
+
 function generateSpotifyAuthUrl(discordUserId: string): string {
   const scope = encodeURIComponent('user-read-private user-read-email user-top-read');
   const state = encodeURIComponent(discordUserId);
@@ -160,6 +162,40 @@ async function handleTracks(userId: string) {
   };
 }
 
+async function handleListen(userId: string, channelId: string, guildId: string | undefined) {
+  // record trigger for Render worker
+  await supabase.from('listen_triggers').insert({
+    user_id: userId,
+    channel_id: channelId,
+    guild_id: guildId,
+    created_at: new Date().toISOString(),
+  });
+
+  // Notify Render directly (optional)
+  if (LISTEN_HOOK_URL) {
+    try {
+      await fetch(LISTEN_HOOK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: userId,
+          channel_id: channelId,
+          guild_id: guildId,
+        }),
+      });
+    } catch (err) {
+      console.error('Failed to hit listen webhook', err);
+    }
+  }
+
+  return {
+    type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+    data: {
+      content: '🎧 Listening session started! I\'ll keep track of your current song.',
+    },
+  };
+}
+
 // ---- Main handler ----
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const rawBody = await buffer(req);
@@ -188,6 +224,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         break;
       case 'tracks':
         response = await handleTracks(interaction.member.user.id);
+        break;
+      case 'listen':
+        response = await handleListen(
+          interaction.member.user.id,
+          interaction.channel_id,
+          interaction.guild_id,
+        );
         break;
       default:
         response = {
