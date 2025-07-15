@@ -7,6 +7,41 @@ import {
   ActivityType,
 } from 'discord.js';
 
+// ---- OpenAI helper ----
+const { OPENAI_API_KEY } = process.env;
+
+async function getFunFact(artist: string): Promise<string> {
+  if (!OPENAI_API_KEY) return `${artist} is cool!`;
+
+  const prompt = `Give me one very short fun fact about the musical artist ${artist} (about 50 words). 
+                    If you can not find anything about the artist, 
+                    do not make stuff up just respond with: 
+                    I'm sorry but I couldnt find anything about this artist.`;
+
+  try {
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: 'gpt-3.5-turbo',
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 50,
+        temperature: 0.7,
+      }),
+    });
+
+    const json = (await res.json()) as any;
+    const fact = json.choices?.[0]?.message?.content?.trim();
+    return fact || `${artist} is cool!`;
+  } catch (err) {
+    console.error('OpenAI error', err);
+    return `${artist} is cool!`;
+  }
+}
+
 const {
   PORT = '8080',
   DISCORD_BOT_TOKEN,
@@ -72,10 +107,17 @@ app.post('/listen-hook', async (req, res) => {
       return res.json({ status: 'no-spotify' });
     }
 
-    // Proceed if Spotify activity present
+    // Proceed if Spotify activity present – grab artist and send fun fact
+    const spotifyAct = member.presence?.activities.find(
+      (a) => a.type === ActivityType.Listening && a.name === 'Spotify',
+    );
+
+    const artistText = spotifyAct?.state ?? 'This artist';
+    const fact = await getFunFact(artistText);
+
     await rest.post(Routes.channelMessages(channelId), {
       body: {
-        content: `👂 <@${userId}> started a listening session! (Spotify detected)`,
+        content: `🎶 ${fact}`,
       },
     });
 
