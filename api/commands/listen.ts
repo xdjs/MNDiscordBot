@@ -1,5 +1,5 @@
 import { InteractionResponseType } from 'discord-interactions';
-import { supabase } from '../lib/supabase';
+import { supabase } from '../lib/supabase.js';
 
 const LISTEN_HOOK_URL = process.env.LISTEN_HOOK_URL;
 

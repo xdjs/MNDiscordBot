@@ -1,6 +1,6 @@
 import { InteractionResponseType } from 'discord-interactions';
-import { supabase } from '../lib/supabase';
-import { spotifyClientId, spotifyClientSecret } from '../lib/spotify';
+import { supabase } from '../lib/supabase.js';
+import { spotifyClientId, spotifyClientSecret } from '../lib/spotify.js';
 
 async function fetchTopTracks(token: string) {
   return fetch(
@@ -75,6 +75,6 @@ export async function tracks(userId: string) {
 
   return {
     type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-    data: { content: `🎵 **Your Top 10 Tracks:**\n${tracksList}` },
+    data: { content: `🎵 **<@${userId}>'s Top 10 Tracks:**\n${tracksList}` },
   };
 } 
