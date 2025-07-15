@@ -7,6 +7,16 @@ import {
   ActivityType,
 } from 'discord.js';
 
+// ---- In-memory session tracking ----
+interface ListenSession {
+  channelId: string;
+  guildId: string;
+  lastTrack: string | null;
+  factCount: number;
+}
+
+const sessions = new Map<string, ListenSession>(); // key = userId
+
 // ---- OpenAI helper ----
 const { OPENAI_API_KEY } = process.env;
 
@@ -133,10 +143,58 @@ app.post('/listen-hook', async (req, res) => {
       },
     });
 
+    // Start active session tracking for up to 3 songs
+    sessions.set(userId, {
+      channelId,
+      guildId,
+      lastTrack: spotifyAct?.details ?? null, // track title
+      factCount: 1,
+    });
+
     res.json({ status: 'ok' });
   } catch (err) {
     console.error('Failed to process listen hook', err);
     res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ---- Presence listener to push fun facts on song change ----
+client.on('presenceUpdate', async (oldPresence, newPresence) => {
+  const userId = newPresence.userId;
+  const session = sessions.get(userId);
+  if (!session) return; // not actively listening
+
+  const spotifyAct = newPresence.activities.find(
+    (a) => a.type === ActivityType.Listening && a.name === 'Spotify',
+  );
+
+  if (!spotifyAct) return; // user stopped listening; keep session until track change or manual stop
+
+  const trackTitle = spotifyAct.details ?? '';
+  if (!trackTitle || trackTitle === session.lastTrack) return; // same song
+
+  // New song detected
+  const artistTextRaw = spotifyAct.state || spotifyAct.assets?.largeText?.split(' – ')[0] || '';
+  const artistText = artistTextRaw.split(/[;,]/)[0].trim() || 'Unknown artist';
+
+  const fact = await getFunFact(artistText);
+
+  try {
+    await rest.post(Routes.channelMessages(session.channelId), {
+      body: {
+        content: `🎶 ${fact}`,
+      },
+    });
+  } catch (err) {
+    console.error('Failed to post fun fact', err);
+  }
+
+  // Update session state
+  session.lastTrack = trackTitle;
+  session.factCount += 1;
+
+  if (session.factCount >= 3) {
+    sessions.delete(userId);
   }
 });
 
