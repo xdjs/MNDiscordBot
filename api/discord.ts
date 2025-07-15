@@ -2,10 +2,10 @@ import { VercelRequest, VercelResponse } from '@vercel/node';
 import { verifyKey, InteractionType, InteractionResponseType } from 'discord-interactions';
 import 'dotenv/config';
 
-import { hi } from '../commands/hi';
-import { connect } from '../commands/connect';
-import { tracks } from '../commands/tracks';
-import { listen } from '../commands/listen';
+import { hi } from './commands/hi';
+import { connect } from './commands/connect';
+import { tracks } from './commands/tracks';
+import { listen } from './commands/listen';
 
 const publicKey = process.env.DISCORD_PUBLIC_KEY!;
 
