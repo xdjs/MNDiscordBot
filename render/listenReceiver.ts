@@ -114,8 +114,11 @@ app.post('/listen-hook', async (req, res) => {
       (a) => a.type === ActivityType.Listening && a.name === 'Spotify',
     );
 
-    const artistText = spotifyAct?.state ?? 'This artist';
-
+    let artistText = spotifyAct?.state ?? '';
+    if (artistText) {
+      artistText = artistText.split(/[;,]/)[0].trim();
+    }
+    if (!artistText) artistText = 'Unknown artist';
     const fact = await getFunFact(artistText);
 
     await rest.post(Routes.channelMessages(channelId), {
