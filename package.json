@@ -6,7 +6,9 @@
   "scripts": {
     "compile": "tsc",
     "start": "node dist/index.js",
-    "dev": "tsx watch src/index.ts"
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "vercel-build": "mkdir -p public && echo 'placeholder' > public/.vercelkeep"
   },
   "dependencies": {
     "discord.js": "^14.13.0",
