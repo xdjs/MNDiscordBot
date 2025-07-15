@@ -66,16 +66,22 @@ app.post('/listen-hook', async (req, res) => {
       await rest.post(Routes.channelMessages(channelId), {
         body: {
           content:
-            `⚠️ <@${userId}>, please enable "Display current activity as a status message" in your Discord settings so I can detect your Spotify activity.`,
+            `⚠️ <@${userId}>, please enable "Display current activity as a status message" in your Discord settings so I can detect your Spotify activity. If you do have it enabled then please play a song and try again.`,
         },
       });
       return res.json({ status: 'no-spotify' });
     }
 
-    // Proceed if Spotify activity present
+    // Proceed if Spotify activity present – send the artist's name
+    const spotifyAct = member.presence?.activities.find(
+      (a) => a.type === ActivityType.Listening && a.name === 'Spotify',
+    );
+
+    const artistText = spotifyAct?.state ?? 'This artist';
+
     await rest.post(Routes.channelMessages(channelId), {
       body: {
-        content: `👂 <@${userId}> started a listening session! (Spotify detected)`,
+        content: `🎶 ${artistText} is cool!`,
       },
     });
 
