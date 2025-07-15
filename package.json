@@ -4,9 +4,10 @@
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc",
+    "compile": "tsc",
     "start": "node dist/index.js",
-    "dev": "tsx watch src/index.ts"
+    "dev": "tsx watch src/index.ts",
+    "vercel-build": "echo 'Skipping compile for Vercel'"
   },
   "dependencies": {
     "discord.js": "^14.13.0",
