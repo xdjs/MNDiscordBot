@@ -19,12 +19,15 @@ async function buffer(req: VercelRequest): Promise<Buffer> {
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const rawBody = await buffer(req);
-  const isValid = verifyKey(
-    rawBody,
-    req.headers['x-signature-ed25519'] as string,
-    req.headers['x-signature-timestamp'] as string,
-    publicKey,
-  );
+  const sig = req.headers['x-signature-ed25519'] as string | undefined;
+  const timestamp = req.headers['x-signature-timestamp'] as string | undefined;
+
+  // If the request lacks Discord signature headers, respond 401 instead of throwing
+  if (!sig || !timestamp) {
+    return res.status(401).send('Signature headers missing');
+  }
+
+  const isValid = verifyKey(rawBody, sig, timestamp, publicKey);
   if (!isValid) return res.status(401).send('Invalid request signature');
 
   const interaction = JSON.parse(rawBody.toString('utf-8'));
