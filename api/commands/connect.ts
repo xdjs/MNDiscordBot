@@ -1,6 +1,6 @@
 import { InteractionResponseType } from 'discord-interactions';
-import { supabase } from '../lib/supabase';
-import { generateSpotifyAuthUrl } from '../lib/spotify';
+import { supabase } from '../lib/supabase.js';
+import { generateSpotifyAuthUrl } from '../lib/spotify.js';
 
 export async function connect(userId: string) {
   const { data } = await supabase

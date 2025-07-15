@@ -1,6 +1,6 @@
 import { InteractionResponseType } from 'discord-interactions';
-import { supabase } from '../lib/supabase';
-import { spotifyClientId, spotifyClientSecret } from '../lib/spotify';
+import { supabase } from '../lib/supabase.js';
+import { spotifyClientId, spotifyClientSecret } from '../lib/spotify.js';
 
 async function fetchTopTracks(token: string) {
   return fetch(
