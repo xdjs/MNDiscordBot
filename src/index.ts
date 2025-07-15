@@ -58,6 +58,7 @@ client.once('ready', async () => {
     new SlashCommandBuilder().setName('hi').setDescription('Say hi!'),
     new SlashCommandBuilder().setName('connect').setDescription('Link your Spotify account'),
     new SlashCommandBuilder().setName('tracks').setDescription('Get your top 10 Spotify tracks'),
+    new SlashCommandBuilder().setName('listen').setDescription('Start a listening session'),
   ].map((c) => c.toJSON());
 
   const rest = new REST({ version: '10' }).setToken(token!);
@@ -90,6 +91,8 @@ client.on('interactionCreate', async (interaction: Interaction) => {
     await handleConnect(interaction);
   } else if (interaction.commandName === 'tracks') {
     await handleTracks(interaction);
+  } else if (interaction.commandName === 'listen') {
+    await handleListen(interaction);
   }
 });
 
@@ -244,6 +247,43 @@ async function handleTracks(interaction: ChatInputCommandInteraction) {
 
   await interaction.reply({
     content: `🎵 **<@${discordUserId}>'s Top 10 Tracks:**\n${tracksList}`,
+  });
+}
+
+// -------------------  /listen command handler  --------------------
+const listenHookUrl = process.env.LISTEN_HOOK_URL;
+
+async function handleListen(interaction: ChatInputCommandInteraction) {
+  const userId = interaction.user.id;
+
+  // Record trigger row (optional analytics)
+  await supabase.from('listen_triggers').insert({
+    user_id: userId,
+    channel_id: interaction.channelId,
+    guild_id: interaction.guildId,
+    created_at: new Date().toISOString(),
+  });
+
+  // Call Render webhook to validate Spotify presence & send fun fact
+  if (listenHookUrl) {
+    try {
+      await fetch(listenHookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: userId,
+          channel_id: interaction.channelId,
+          guild_id: interaction.guildId,
+        }),
+      });
+    } catch (err) {
+      console.error('Failed to call listen webhook', err);
+    }
+  }
+
+  await interaction.reply({
+    content: "🎧 Listening session started! I'll send you a fun fact soon.",
+    ephemeral: true,
   });
 }
 
