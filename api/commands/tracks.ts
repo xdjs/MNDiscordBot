@@ -75,6 +75,6 @@ export async function tracks(userId: string) {
 
   return {
     type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-    data: { content: `🎵 **Your Top 10 Tracks:**\n${tracksList}` },
+    data: { content: `🎵 **<@${userId}>'s Top 10 Tracks:**\n${tracksList}` },
   };
 } 
