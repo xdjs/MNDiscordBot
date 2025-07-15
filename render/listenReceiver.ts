@@ -13,10 +13,10 @@ const { OPENAI_API_KEY } = process.env;
 async function getFunFact(artist: string): Promise<string> {
   if (!OPENAI_API_KEY) return `${artist} is cool!`;
 
-  const prompt = `Give me one very short fun fact about the musical artist ${artist} (about 50 words). 
+  const prompt = `Give me one very short fun fact about the musical artist ${artist} (about 1 - 2 sentences). 
                     If you can not find anything about the artist, 
                     do not make stuff up just respond with: 
-                    I'm sorry but I couldnt find anything about this artist.`;
+                    I'm sorry but I couldnt find anything about ${artist}.`;
 
   try {
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -114,7 +114,12 @@ app.post('/listen-hook', async (req, res) => {
       (a) => a.type === ActivityType.Listening && a.name === 'Spotify',
     );
 
-    let artistText = spotifyAct?.state ?? '';
+    let artistText =
+      spotifyAct?.state ||
+      spotifyAct?.assets?.largeText?.split(' – ')[0] ||   // "Artist – Track"
+      spotifyAct?.details;                                // track title as last resort
+
+    console.log('artistText extracted:', artistText);
     if (artistText) {
       artistText = artistText.split(/[;,]/)[0].trim();
     }
