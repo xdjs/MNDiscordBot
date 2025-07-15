@@ -7,7 +7,8 @@
     "compile": "tsc",
     "start": "node dist/index.js",
     "dev": "tsx watch src/index.ts",
-    "build": "tsc"
+    "build": "tsc",
+    "vercel-build": "echo 'skip build on Vercel'"
   },
   "dependencies": {
     "discord.js": "^14.13.0",
