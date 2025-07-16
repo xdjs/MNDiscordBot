@@ -6,6 +6,7 @@ import { hi } from './commands/hi.js';
 import { connect } from './commands/connect.js';
 import { tracks } from './commands/tracks.js';
 import { listen } from './commands/listen.js';
+import { help } from './commands/help.js';
 
 const publicKey = process.env.DISCORD_PUBLIC_KEY!;
 
@@ -55,6 +56,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           interaction.channel_id,
           interaction.guild_id,
         );
+        break;
+      case 'help':
+        response = await help(interaction.member.user.id);
         break;
       default:
         response = {

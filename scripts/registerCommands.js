@@ -14,6 +14,7 @@ const commands = [
   new SlashCommandBuilder().setName('connect').setDescription('Link your Spotify account'),
   new SlashCommandBuilder().setName('tracks').setDescription('Get your top 10 Spotify tracks'),
   new SlashCommandBuilder().setName('listen').setDescription('Start a listening session'),
+  new SlashCommandBuilder().setName('help').setDescription('Show help information'),
 ].map((c) => c.toJSON());
 
 const rest = new REST({ version: '10' }).setToken(token);
