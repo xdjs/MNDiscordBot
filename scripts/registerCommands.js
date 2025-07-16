@@ -1,7 +1,6 @@
 import 'dotenv/config';
 import { REST, Routes, SlashCommandBuilder } from 'discord.js';
 
-// Environment variables expected to be provided by Vercel / .env
 const token = process.env.DISCORD_BOT_TOKEN;
 const clientId = process.env.DISCORD_CLIENT_ID;
 
@@ -10,7 +9,6 @@ if (!token || !clientId) {
   process.exit(1);
 }
 
-// Define your commands exactly once so registration & runtime stay in sync
 const commands = [
   new SlashCommandBuilder().setName('hi').setDescription('Say hi!'),
   new SlashCommandBuilder().setName('connect').setDescription('Link your Spotify account'),
