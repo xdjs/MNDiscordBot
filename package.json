@@ -8,7 +8,8 @@
     "start": "npm run compile && node dist/src/index.js",
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
-    "vercel-build": "mkdir -p public && echo 'placeholder' > public/.vercelkeep"
+    "vercel-build": "node scripts/registerCommands.js && mkdir -p public && echo 'placeholder' > public/.vercelkeep",
+    "register:commands": "node scripts/registerCommands.js"
   },
   "dependencies": {
     "discord.js": "^14.13.0",

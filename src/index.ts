@@ -47,21 +47,26 @@ if (!token || !clientId) {
   );
 }
 
+// ------------------------------------------------------
+// Slash command definitions and REST client
+// ------------------------------------------------------
+const commands = [
+  new SlashCommandBuilder().setName('hi').setDescription('Say hi!'),
+  new SlashCommandBuilder().setName('connect').setDescription('Link your Spotify account'),
+  new SlashCommandBuilder().setName('tracks').setDescription('Get your top 10 Spotify tracks'),
+  new SlashCommandBuilder().setName('listen').setDescription('Start a listening session'),
+].map((c) => c.toJSON());
+
+// Reusable REST instance so we can register commands at runtime (e.g. when joining new guilds)
+const rest = new REST({ version: '10' }).setToken(token!);
+
 // Create the client with only the Guilds intent (enough for slash commands)
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
 client.once('ready', async () => {
   console.log(`Logged in as ${client.user?.tag}!`);
 
-  // Define slash commands
-  const commands = [
-    new SlashCommandBuilder().setName('hi').setDescription('Say hi!'),
-    new SlashCommandBuilder().setName('connect').setDescription('Link your Spotify account'),
-    new SlashCommandBuilder().setName('tracks').setDescription('Get your top 10 Spotify tracks'),
-    new SlashCommandBuilder().setName('listen').setDescription('Start a listening session'),
-  ].map((c) => c.toJSON());
-
-  const rest = new REST({ version: '10' }).setToken(token!);
+  // (Commands and REST client are now defined at module scope)
 
   try {
     console.log('Refreshing application (/) commands...');
@@ -79,6 +84,17 @@ client.once('ready', async () => {
     }
   } catch (error) {
     console.error('Failed to register commands:', error);
+  }
+});
+
+// Register commands immediately when the bot joins a new guild so they are
+// available without waiting for the global command propagation delay.
+client.on('guildCreate', async (guild) => {
+  try {
+    await rest.put(Routes.applicationGuildCommands(clientId!, guild.id), { body: commands });
+    console.log(`Registered slash commands for new guild "${guild.name}" (${guild.id}).`);
+  } catch (error) {
+    console.error(`Failed to register commands for guild ${guild.id}:`, error);
   }
 });
 
