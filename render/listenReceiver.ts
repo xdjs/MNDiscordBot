@@ -5,17 +5,53 @@ import {
   Client as DiscordClient,
   GatewayIntentBits,
   ActivityType,
+  Message,
 } from 'discord.js';
 
 // ---- In-memory session tracking ----
 interface ListenSession {
   channelId: string;
   guildId: string;
-  lastTrack: string | null;
+  /**
+   * The last Spotify track identifier we responded to.
+   * Prefer the Spotify `syncId` (unique per track) and fall back to the track title when unavailable.
+   */
+  lastTrackId: string | null;
   factCount: number;
 }
 
 const sessions = new Map<string, ListenSession>(); // key = userId
+
+// ---- Chat session tracking ----
+const chatChannels = new Set<string>();
+interface ChatSession {
+  timeout: NodeJS.Timeout;
+}
+const chatSessions = new Map<string, ChatSession>(); // key = channelId
+
+function scheduleChatTimeout(channelId: string) {
+  // Clear existing timer if present
+  const existing = chatSessions.get(channelId);
+  if (existing) {
+    clearTimeout(existing.timeout);
+  }
+
+  const timeout = setTimeout(async () => {
+    chatChannels.delete(channelId);
+    chatSessions.delete(channelId);
+    try {
+      const chan = await client.channels.fetch(channelId);
+      if (chan && chan.isTextBased()) {
+        await (chan as any).send('⌛ Chat session closed due to inactivity.');
+      }
+    } catch (err) {
+      console.error('Failed to post timeout message', err);
+    }
+    console.log(`Chat session for ${channelId} closed after inactivity.`);
+  }, 2 * 60 * 1000); // 2 minutes
+
+  chatSessions.set(channelId, { timeout });
+}
 
 // ---- OpenAI helper ----
 const { OPENAI_API_KEY } = process.env;
@@ -52,6 +88,36 @@ async function getFunFact(artist: string): Promise<string> {
   }
 }
 
+// ---- OpenAI helper for general chat ----
+async function getChatAnswer(question: string): Promise<string> {
+  if (!OPENAI_API_KEY) return "I'm offline right now. Try again later!";
+
+  const prompt = `You are a helpful assistant in a Discord channel. Answer the following question concisely and helpfully. Question: ${question}`;
+
+  try {
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: 'gpt-3.5-turbo',
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 200,
+        temperature: 0.7,
+      }),
+    });
+
+    const json = (await res.json()) as any;
+    const answer = json.choices?.[0]?.message?.content?.trim();
+    return answer || "I'm not sure.";
+  } catch (err) {
+    console.error('OpenAI chat error', err);
+    return "Something went wrong.";
+  }
+}
+
 const {
   PORT = '8080',
   DISCORD_BOT_TOKEN,
@@ -68,6 +134,8 @@ const client = new DiscordClient({
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildPresences,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent,
   ],
 });
 
@@ -139,7 +207,7 @@ app.post('/listen-hook', async (req, res) => {
     await rest.post(Routes.channelMessages(channelId), {
       body: {
         content: `🎶 ${fact}`,
-
+        tts: true,
       },
     });
 
@@ -147,7 +215,7 @@ app.post('/listen-hook', async (req, res) => {
     sessions.set(userId, {
       channelId,
       guildId,
-      lastTrack: spotifyAct?.details ?? null, // track title
+      lastTrackId: (spotifyAct as any)?.syncId ?? spotifyAct?.details ?? null,
       factCount: 1,
     });
 
@@ -156,6 +224,17 @@ app.post('/listen-hook', async (req, res) => {
     console.error('Failed to process listen hook', err);
     res.status(500).json({ error: 'Server error' });
   }
+});
+
+// ---- Chat hook to activate listening on a channel ----
+app.post('/chat-hook', (req, res) => {
+  const { channel_id: channelId } = req.body as { channel_id?: string };
+  if (!channelId) return res.status(400).json({ error: 'Missing channel_id' });
+
+  chatChannels.add(channelId);
+  console.log('Chat listening activated for', channelId);
+  scheduleChatTimeout(channelId);
+  return res.json({ status: 'ok' });
 });
 
 // ---- Presence listener to push fun facts on song change ----
@@ -170,8 +249,8 @@ client.on('presenceUpdate', async (oldPresence, newPresence) => {
 
   if (!spotifyAct) return; // user stopped listening; keep session until track change or manual stop
 
-  const trackTitle = spotifyAct.details ?? '';
-  if (!trackTitle || trackTitle === session.lastTrack) return; // same song
+  const trackIdentifier = (spotifyAct as any).syncId ?? spotifyAct.details ?? '';
+  if (!trackIdentifier || trackIdentifier === session.lastTrackId) return; // same song
 
   // New song detected
   const artistTextRaw = spotifyAct.state || spotifyAct.assets?.largeText?.split(' – ')[0] || '';
@@ -183,6 +262,7 @@ client.on('presenceUpdate', async (oldPresence, newPresence) => {
     await rest.post(Routes.channelMessages(session.channelId), {
       body: {
         content: `🎶 ${fact}`,
+        tts: true,
       },
     });
   } catch (err) {
@@ -190,11 +270,30 @@ client.on('presenceUpdate', async (oldPresence, newPresence) => {
   }
 
   // Update session state
-  session.lastTrack = trackTitle;
+  session.lastTrackId = trackIdentifier;
   session.factCount += 1;
 
   if (session.factCount >= 3) {
     sessions.delete(userId);
+  }
+});
+
+// ---- Message listener for #bot-chat ----
+client.on('messageCreate', async (message: Message) => {
+  if (message.author.bot) return;
+  if (!chatChannels.has(message.channel.id)) return;
+
+  const answer = await getChatAnswer(message.content);
+
+  // Reset inactivity timer
+  scheduleChatTimeout(message.channel.id);
+
+  try {
+    if (message.channel.isTextBased()) {
+      await (message.channel as any).send({ content: answer });
+    }
+  } catch (err) {
+    console.error('Failed to send chat answer', err);
   }
 });
 
