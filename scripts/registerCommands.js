@@ -14,7 +14,15 @@ const commands = [
   new SlashCommandBuilder().setName('hi').setDescription('Say hi!'),
   new SlashCommandBuilder().setName('connect').setDescription('Link your Spotify account'),
   new SlashCommandBuilder().setName('tracks').setDescription('Get your top 10 Spotify tracks'),
-  new SlashCommandBuilder().setName('listen').setDescription('Start a listening session'),
+  new SlashCommandBuilder()
+    .setName('listen')
+    .setDescription('Start a listening session')
+    .addUserOption((option) =>
+      option
+        .setName('user')
+        .setDescription('The user whose Spotify status to listen to (defaults to yourself)')
+        .setRequired(false)
+    ),
   new SlashCommandBuilder().setName('help').setDescription('Show help information'),
   new SlashCommandBuilder().setName('chat').setDescription('Prompt questions in #bot-chat'),
 ].map((c) => c.toJSON());
