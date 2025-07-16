@@ -281,10 +281,14 @@ async function handleTracks(interaction: ChatInputCommandInteraction) {
 
 // -------------------  /listen command handler  --------------------
 const listenHookUrl = process.env.LISTEN_HOOK_URL;
+const musicHookUrl = process.env.MUSIC_HOOK_URL;
 
 async function handleListen(interaction: ChatInputCommandInteraction) {
   const targetUser = interaction.options.getUser('user');
+  const isBotTarget = targetUser?.bot ?? false;
   const userId = targetUser ? targetUser.id : interaction.user.id;
+
+  const displayUser = targetUser ? `<@${targetUser.id}>` : 'you';
 
   // Record trigger row (optional analytics)
   await supabase.from('listen_triggers').insert({
@@ -293,6 +297,29 @@ async function handleListen(interaction: ChatInputCommandInteraction) {
     guild_id: interaction.guildId,
     created_at: new Date().toISOString(),
   });
+
+  // ------------------------------------------------------------
+  // If the target is a bot, switch to chat-listening mode instead
+  // ------------------------------------------------------------
+  if (isBotTarget) {
+    if (musicHookUrl) {
+      try {
+        await fetch(musicHookUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ channel_id: interaction.channelId, bot_id: userId }),
+        });
+      } catch (err) {
+        console.error('Failed to call music webhook', err);
+      }
+    }
+
+    await interaction.reply({
+      content: `🎶 I'll track <@${userId}>'s Now-Playing messages and share fun facts!`,
+      ephemeral: true,
+    });
+    return; // Skip Spotify flow for bots
+  }
 
   // Call Render webhook to validate Spotify presence & send fun fact
   if (listenHookUrl) {
@@ -310,8 +337,6 @@ async function handleListen(interaction: ChatInputCommandInteraction) {
       console.error('Failed to call listen webhook', err);
     }
   }
-
-  const displayUser = targetUser ? `<@${targetUser.id}>` : 'you';
 
   await interaction.reply({
     content: `🎧 Listening session started for ${displayUser}! I'll send you a fun fact soon.`,
@@ -419,5 +444,3 @@ app.get('/spotify/callback', async (req: Request, res: Response) => {
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
 app.listen(PORT, () => console.log(`OAuth callback server listening on port ${PORT}`));
-
-client.login(token); 

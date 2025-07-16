@@ -29,6 +29,24 @@ interface ChatSession {
 }
 const chatSessions = new Map<string, ChatSession>(); // key = channelId
 
+// ---- Music bot now-playing tracking ----
+interface MusicSession {
+  botId: string;
+  timeout: NodeJS.Timeout;
+}
+const musicSessions = new Map<string, MusicSession>(); // key = channelId
+
+function scheduleMusicTimeout(channelId: string) {
+  const session = musicSessions.get(channelId);
+  if (!session) return;
+  clearTimeout(session.timeout);
+  const timeout = setTimeout(() => {
+    musicSessions.delete(channelId);
+    console.log(`Music session for ${channelId} closed due to inactivity.`);
+  }, 2 * 60 * 1000);
+  session.timeout = timeout;
+}
+
 function scheduleChatTimeout(channelId: string) {
   // Clear existing timer if present
   const existing = chatSessions.get(channelId);
@@ -59,10 +77,10 @@ const { OPENAI_API_KEY } = process.env;
 async function getFunFact(artist: string): Promise<string> {
   if (!OPENAI_API_KEY) return `${artist} is cool!`;
 
-  const prompt = `Give me one very short fun fact about the musical artist ${artist} (about 1 - 2 sentences). 
-                    If you can not find anything about the artist, 
-                    do not make stuff up just respond with: 
-                    I'm sorry but I couldnt find anything about ${artist}.`;
+  const prompt = `Generate a random fun fact about the artist ${artist} that would be interesting to both new fans and superfans. 
+  This should not be a well-known fact. 
+  Do not provide or make up any false information.
+  If you cannot find anything then respond with "I'm sorry but I couldn't find anything about ${artist}."`;
 
   try {
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -89,6 +107,40 @@ async function getFunFact(artist: string): Promise<string> {
 }
 
 // ---- OpenAI helper for general chat ----
+
+// ---- OpenAI helper for "now playing" lines from music bots ----
+async function getSongFunFact(nowPlayingLine: string): Promise<string> {
+  if (!OPENAI_API_KEY) return `${nowPlayingLine} sounds great!`;
+
+  const prompt = `The following Discord message came from a music bot and announces what it is currently playing.\n` +
+    `Message: \"${nowPlayingLine}\"\n` +
+    `Extract the song (and artist if present) and give me one fun fact about that song in 1-2 sentences. ` +
+    `If you cannot identify the song, reply: I'm sorry but I couldn't find anything about that song.`;
+
+  try {
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: 'gpt-3.5-turbo',
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 60,
+        temperature: 0.7,
+      }),
+    });
+
+    const json = (await res.json()) as any;
+    const fact = json.choices?.[0]?.message?.content?.trim();
+    return fact || `${nowPlayingLine} sounds great!`;
+  } catch (err) {
+    console.error('OpenAI song fact error', err);
+    return `${nowPlayingLine} sounds great!`;
+  }
+}
+
 interface SongContext {
   track: string;
   artist: string;
@@ -246,6 +298,28 @@ app.post('/chat-hook', (req, res) => {
   return res.json({ status: 'ok' });
 });
 
+// ---- Music hook to track "now playing" messages from a specific bot ----
+app.post('/music-hook', (req, res) => {
+  const { channel_id: channelId, bot_id: botId } = req.body as {
+    channel_id?: string;
+    bot_id?: string;
+  };
+  if (!channelId || !botId) return res.status(400).json({ error: 'Missing channel_id or bot_id' });
+
+  // Clear existing timer if any and set new session
+  const existing = musicSessions.get(channelId);
+  if (existing) clearTimeout(existing.timeout);
+
+  const timeout = setTimeout(() => {
+    musicSessions.delete(channelId);
+    console.log(`Music session for ${channelId} closed due to inactivity.`);
+  }, 2 * 60 * 1000);
+
+  musicSessions.set(channelId, { botId, timeout });
+  console.log('Music listening activated for', channelId, 'bot', botId);
+  return res.json({ status: 'ok' });
+});
+
 // ---- Presence listener to push fun facts on song change ----
 client.on('presenceUpdate', async (oldPresence, newPresence) => {
   const userId = newPresence.userId;
@@ -289,8 +363,51 @@ client.on('presenceUpdate', async (oldPresence, newPresence) => {
 
 // ---- Message listener for #bot-chat ----
 client.on('messageCreate', async (message: Message) => {
-  if (message.author.bot) return;
+  // Ignore messages sent by *this* bot to prevent feedback loops.
+  if (message.author.id === client.user?.id) return;
+
+  // -----------------------------
+  // Music bot "now playing" flow
+  // -----------------------------
+  const musicSession = musicSessions.get(message.channel.id);
+  if (musicSession && message.author.id === musicSession.botId) {
+    const npMatch = /now\s*playing[:]?\s*(.+)/i.exec(message.content);
+    if (npMatch && npMatch[1]) {
+      const nowPlayingLine = npMatch[1].trim();
+      const fact = await getSongFunFact(nowPlayingLine);
+
+      // Reset inactivity timer
+      scheduleMusicTimeout(message.channel.id);
+
+      // Try to send to voice channel if bot is connected
+      let destinationChannel: any = message.channel;
+      if (message.guild) {
+        try {
+          const botMember = await message.guild.members.fetch(message.author.id);
+          const voiceChan = botMember.voice?.channel;
+          if (voiceChan && (voiceChan as any).send) {
+            destinationChannel = voiceChan as any;
+          }
+        } catch (err) {
+          console.error('Failed to resolve bot voice channel', err);
+        }
+      }
+
+      try {
+        await destinationChannel.send({ content: `🎶 ${fact}`, tts: true });
+      } catch (err) {
+        console.error('Failed to send song fact', err);
+      }
+    }
+    return; // Do not run chat answer flow
+  }
+
+  // ------------------------------------
+  // Chat Q&A flow for channels in chatChannels
+  // ------------------------------------
   if (!chatChannels.has(message.channel.id)) return;
+
+  if (message.author.bot) return; // ignore other bots in chat Q&A
 
   // Attempt to include current Spotify song context if author is listening
   let songCtx: SongContext | undefined;
