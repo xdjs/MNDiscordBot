@@ -54,7 +54,17 @@ const commands = [
   new SlashCommandBuilder().setName('hi').setDescription('Say hi!'),
   new SlashCommandBuilder().setName('connect').setDescription('Link your Spotify account'),
   new SlashCommandBuilder().setName('tracks').setDescription('Get your top 10 Spotify tracks'),
-  new SlashCommandBuilder().setName('listen').setDescription('Start a listening session'),
+  new SlashCommandBuilder()
+    .setName('listen')
+    .setDescription('Start a listening session')
+    .addUserOption((option) =>
+      option
+        .setName('user')
+        .setDescription(
+          'The user whose Spotify status to listen to (defaults to yourself)',
+        )
+        .setRequired(false)
+    ),
   new SlashCommandBuilder().setName('chat').setDescription('Prompt questions in #bot-chat'),
 ].map((c) => c.toJSON());
 
@@ -273,7 +283,8 @@ async function handleTracks(interaction: ChatInputCommandInteraction) {
 const listenHookUrl = process.env.LISTEN_HOOK_URL;
 
 async function handleListen(interaction: ChatInputCommandInteraction) {
-  const userId = interaction.user.id;
+  const targetUser = interaction.options.getUser('user');
+  const userId = targetUser ? targetUser.id : interaction.user.id;
 
   // Record trigger row (optional analytics)
   await supabase.from('listen_triggers').insert({
@@ -300,8 +311,10 @@ async function handleListen(interaction: ChatInputCommandInteraction) {
     }
   }
 
+  const displayUser = targetUser ? `<@${targetUser.id}>` : 'you';
+
   await interaction.reply({
-    content: "🎧 Listening session started! I'll send you a fun fact soon.",
+    content: `🎧 Listening session started for ${displayUser}! I'll send you a fun fact soon.`,
     ephemeral: true,
   });
 }

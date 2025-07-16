@@ -51,13 +51,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       case 'tracks':
         response = await tracks(interaction.member.user.id);
         break;
-      case 'listen':
+      case 'listen': {
+        // If the slash command included a target user option, use that ID; otherwise, fall back to the caller.
+        let targetUserId = interaction.member.user.id;
+        if (interaction.data.options && Array.isArray(interaction.data.options)) {
+          const userOpt = (interaction.data.options as Array<any>).find((opt) => opt.name === 'user');
+          if (userOpt && typeof userOpt.value === 'string') {
+            targetUserId = userOpt.value;
+          }
+        }
+
         response = await listen(
-          interaction.member.user.id,
+          targetUserId,
           interaction.channel_id,
           interaction.guild_id,
         );
         break;
+      }
       case 'help':
         response = await help(interaction.member.user.id);
         break;
