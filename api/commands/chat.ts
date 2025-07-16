@@ -63,11 +63,17 @@ export async function chat(guildId: string | undefined, _interactionChannelId: s
     // After posting prompt, notify Render chat hook (if env set)
     const CHAT_HOOK_URL = process.env.CHAT_HOOK_URL;
     if (CHAT_HOOK_URL) {
-      fetch(CHAT_HOOK_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ channel_id: botChatId }),
-      }).catch((err) => console.error('Failed to hit chat hook', err));
+      try {
+        const resp = await fetch(CHAT_HOOK_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ channel_id: botChatId }),
+        });
+        console.log('[chat-hook] status', resp.status);
+        if (!resp.ok) console.log('[chat-hook] body', await resp.text());
+      } catch (err) {
+        console.error('Failed to hit chat hook', err);
+      }
     }
   } catch (err) {
     console.error('Failed to post message to #bot-chat', err);

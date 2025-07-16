@@ -36,7 +36,7 @@ export async function listen(userId: string, channelId: string, guildId: string 
   if (hookStatus === 'no-spotify') {
     reply = '⚠️ You are not currently listening to Spotify **or** “Display current activity” is disabled. Please start a song and enable the setting, then try /listen again.';
   } else {
-    reply = "🎧 Listening session started! I'll send you a fun fact soon.";
+    reply = "🎧 Listening session started! I'll send you some fun facts.";
   }
 
   return {

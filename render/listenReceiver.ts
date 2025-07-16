@@ -89,10 +89,19 @@ async function getFunFact(artist: string): Promise<string> {
 }
 
 // ---- OpenAI helper for general chat ----
-async function getChatAnswer(question: string): Promise<string> {
+interface SongContext {
+  track: string;
+  artist: string;
+}
+
+async function getChatAnswer(question: string, song?: SongContext): Promise<string> {
   if (!OPENAI_API_KEY) return "I'm offline right now. Try again later!";
 
-  const prompt = `You are a helpful assistant in a Discord channel. Answer the following question concisely and helpfully. Question: ${question}`;
+  let prompt = `You are a helpful assistant in a Discord channel.`;
+  if (song) {
+    prompt += ` The user is currently listening to the song "${song.track}" by "${song.artist}". Use this information as context when relevant.`;
+  }
+  prompt += ` Answer the following question concisely and helpfully. Question: ${question}`;
 
   try {
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -283,7 +292,25 @@ client.on('messageCreate', async (message: Message) => {
   if (message.author.bot) return;
   if (!chatChannels.has(message.channel.id)) return;
 
-  const answer = await getChatAnswer(message.content);
+  // Attempt to include current Spotify song context if author is listening
+  let songCtx: SongContext | undefined;
+  const activities = message.member?.presence?.activities || [];
+  const spotifyAct = activities.find((a) => a.type === ActivityType.Listening && a.name === 'Spotify');
+  if (spotifyAct) {
+    const track = spotifyAct.details || '';
+    let artist = spotifyAct.state || '';
+    if (!artist) {
+      const largeText = spotifyAct.assets?.largeText as string | undefined;
+      if (largeText && largeText.includes(' – ')) {
+        artist = largeText.split(' – ')[0];
+      }
+    }
+    if (track && artist) {
+      songCtx = { track, artist };
+    }
+  }
+
+  const answer = await getChatAnswer(message.content, songCtx);
 
   // Reset inactivity timer
   scheduleChatTimeout(message.channel.id);
