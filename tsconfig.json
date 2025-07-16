@@ -10,5 +10,5 @@
     "strict": true,
     "skipLibCheck": true
   },
-  "include": ["src", "api", "render"]
+  "include": ["src", "api", "render", "scripts"]
 } 
