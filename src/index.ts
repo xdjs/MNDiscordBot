@@ -55,6 +55,7 @@ const commands = [
   new SlashCommandBuilder().setName('connect').setDescription('Link your Spotify account'),
   new SlashCommandBuilder().setName('tracks').setDescription('Get your top 10 Spotify tracks'),
   new SlashCommandBuilder().setName('listen').setDescription('Start a listening session'),
+  new SlashCommandBuilder().setName('chat').setDescription('Prompt questions in #bot-chat'),
 ].map((c) => c.toJSON());
 
 // Reusable REST instance so we can register commands at runtime (e.g. when joining new guilds)
@@ -109,6 +110,8 @@ client.on('interactionCreate', async (interaction: Interaction) => {
     await handleTracks(interaction);
   } else if (interaction.commandName === 'listen') {
     await handleListen(interaction);
+  } else if (interaction.commandName === 'chat') {
+    await handleChat(interaction);
   }
 });
 
@@ -301,6 +304,47 @@ async function handleListen(interaction: ChatInputCommandInteraction) {
     content: "🎧 Listening session started! I'll send you a fun fact soon.",
     ephemeral: true,
   });
+}
+
+// ------------------- /chat command handler --------------------
+async function handleChat(interaction: ChatInputCommandInteraction) {
+  const guildId = interaction.guildId;
+
+  if (!guildId) {
+    await interaction.reply({ content: '⚠️ This command only works inside a server.', ephemeral: true });
+    return;
+  }
+
+  // Fetch guild channels and look for #bot-chat
+  let botChatId: string | null = null;
+  try {
+    const channels = await client.guilds.cache.get(guildId)?.channels.fetch();
+    if (channels) {
+      channels.forEach((channel) => {
+        if (channel && channel.isTextBased() && (channel as any).name === 'bot-chat') {
+          botChatId = channel.id;
+        }
+      });
+    }
+  } catch (err) {
+    console.error('Error fetching channels', err);
+  }
+
+  if (!botChatId) {
+    await interaction.reply({ content: '⚠️ Please create a #bot-chat channel first.', ephemeral: true });
+    return;
+  }
+
+  try {
+    const targetChannel = client.channels.cache.get(botChatId ?? '');
+    if (targetChannel && targetChannel.isTextBased()) {
+      await (targetChannel as any).send('What questions do you have?');
+    }
+    await interaction.reply({ content: `✅ Prompt posted in #bot-chat!`, ephemeral: true });
+  } catch (err) {
+    console.error('Failed to send message', err);
+    await interaction.reply({ content: 'Failed to post in #bot-chat.', ephemeral: true });
+  }
 }
 
 // -------------------  Spotify OAuth callback server  ---------------
