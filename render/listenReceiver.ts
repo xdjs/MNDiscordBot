@@ -256,6 +256,10 @@ client.on('presenceUpdate', async (oldPresence, newPresence) => {
   const artistTextRaw = spotifyAct.state || spotifyAct.assets?.largeText?.split(' – ')[0] || '';
   const artistText = artistTextRaw.split(/[;,]/)[0].trim() || 'Unknown artist';
 
+  // Update session state
+  session.lastTrackId = trackIdentifier;
+  session.factCount += 1;
+
   const fact = await getFunFact(artistText);
 
   try {
@@ -268,10 +272,6 @@ client.on('presenceUpdate', async (oldPresence, newPresence) => {
   } catch (err) {
     console.error('Failed to post fun fact', err);
   }
-
-  // Update session state
-  session.lastTrackId = trackIdentifier;
-  session.factCount += 1;
 
   if (session.factCount >= 3) {
     sessions.delete(userId);
