@@ -94,7 +94,7 @@ async function getFunFact(artist: string): Promise<string> {
         Authorization: `Bearer ${OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
-        model: 'gpt-3.5-turbo',
+        model: 'gpt-4o',
         messages: [{ role: 'user', content: prompt }],
         max_tokens: 50,
         temperature: 0.7,
@@ -129,7 +129,7 @@ async function getSongFunFact(nowPlayingLine: string): Promise<string> {
         Authorization: `Bearer ${OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
-        model: 'gpt-3.5-turbo',
+        model: 'gpt-4o',
         messages: [{ role: 'user', content: prompt }],
         max_tokens: 60,
         temperature: 0.7,
