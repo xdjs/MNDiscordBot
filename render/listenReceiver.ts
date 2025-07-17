@@ -22,6 +22,8 @@ interface ListenSession {
    */
   lastTrackId: string | null;
   factCount: number;
+  /** Timer that ends the session after inactivity */
+  timeout?: NodeJS.Timeout;
 }
 
 const sessions = new Map<string, ListenSession>(); // key = userId
@@ -39,6 +41,33 @@ interface MusicSession {
   timeout: NodeJS.Timeout;
 }
 const musicSessions = new Map<string, MusicSession>(); // key = channelId
+
+// ---- Listen session timeout helper ----
+function scheduleListenTimeout(userId: string) {
+  const session = sessions.get(userId);
+  if (!session) return;
+
+  // Clear any existing timer
+  if (session.timeout) clearTimeout(session.timeout);
+
+  const timeout = setTimeout(async () => {
+    // Remove session record
+    sessions.delete(userId);
+
+    // Notify channel that the session closed
+    try {
+      await rest.post(Routes.channelMessages(session.channelId), {
+        body: { content: '⌛ Listening session closed due to inactivity.' },
+      });
+    } catch (err) {
+      console.error('Failed to post listen timeout message', err);
+    }
+
+    console.log(`Listen session for user ${userId} closed due to inactivity.`);
+  }, 5 * 60 * 1000); // 5 minutes
+
+  session.timeout = timeout;
+}
 
 function scheduleMusicTimeout(channelId: string) {
   const session = musicSessions.get(channelId);
@@ -81,7 +110,7 @@ const { OPENAI_API_KEY } = process.env;
 async function getFunFact(artist: string): Promise<string> {
   if (!OPENAI_API_KEY) return `${artist} is cool!`;
 
-  const prompt = `Generate a random fun fact about the artist ${artist} that would be interesting to both new fans and superfans. 
+  const prompt = `Generate a random fun fact (about 1-2 sentences) about the artist ${artist} that would be interesting to both new fans and superfans. 
   This should not be a well-known fact. 
   Do not provide or make up any false information.`;
 
@@ -243,7 +272,7 @@ app.post('/listen-hook', async (req, res) => {
       await rest.post(Routes.channelMessages(channelId), {
         body: {
           content:
-            `⚠️ <@${userId}>, please enable "Display current activity as a status message" in your Discord settings so I can detect your Spotify activity. If you do have it enabled then please play a song and try again.`,
+            `<@${userId}>, please enable "Display current activity as a status message" in your Discord settings so I can detect your Spotify activity. If you do have it enabled then please play a song and try again.`,
         },
       });
       return res.json({ status: 'no-spotify' });
@@ -281,7 +310,11 @@ app.post('/listen-hook', async (req, res) => {
       guildId,
       lastTrackId: (spotifyAct as any)?.syncId ?? spotifyAct?.details ?? null,
       factCount: 1,
+      timeout: undefined,
     });
+
+    // Start inactivity timer
+    scheduleListenTimeout(userId);
 
     res.json({ status: 'ok' });
   } catch (err) {
@@ -453,7 +486,12 @@ client.on('presenceUpdate', async (oldPresence, newPresence) => {
     (a) => a.type === ActivityType.Listening && a.name === 'Spotify',
   );
 
-  if (!spotifyAct) return; // user stopped listening; keep session until track change or manual stop
+  // Reset inactivity timer if the user is still listening
+  if (spotifyAct) {
+    scheduleListenTimeout(userId);
+  }
+
+  if (!spotifyAct) return; // user stopped listening; keep session until timeout or manual stop
 
   const trackIdentifier = (spotifyAct as any).syncId ?? spotifyAct.details ?? '';
   if (!trackIdentifier || trackIdentifier === session.lastTrackId) return; // same song
@@ -480,6 +518,7 @@ client.on('presenceUpdate', async (oldPresence, newPresence) => {
   }
 
   if (session.factCount >= 3) {
+    if (session.timeout) clearTimeout(session.timeout);
     sessions.delete(userId);
   }
 });

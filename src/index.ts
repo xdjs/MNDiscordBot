@@ -341,8 +341,12 @@ async function handleListen(interaction: ChatInputCommandInteraction) {
     }
   }
 
+  const replyMessage = targetUser
+    ? `🎧 Listening to ${displayUser}'s songs! I'll send you some fun facts.`
+    : `🎧 Listening session started! I'll send you some fun facts.`;
+
   await interaction.reply({
-    content: `🎧 Listening session started for ${displayUser}! I'll send you a fun fact soon.`,
+    content: replyMessage,
     ephemeral: true,
   });
 }
