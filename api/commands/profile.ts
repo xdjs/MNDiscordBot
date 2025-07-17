@@ -19,13 +19,13 @@ export async function profile(interaction: any) {
       interaction_token: interaction.token,
     };
 
-    await fetch(process.env.PROFILE_HOOK_URL!, {
+    fetch(process.env.PROFILE_HOOK_URL!, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Profile-Signature': process.env.PROFILE_HOOK_SECRET ?? '' },
       body: JSON.stringify(payload),
-    });
+    }).catch((err) => console.error('[profile] fetch error', err));
   } catch (err) {
-    console.error('[profile] Failed to call Render webhook', err);
+    console.error('[profile] Failed to queue profile hook', err);
   }
 
   return deferred;
