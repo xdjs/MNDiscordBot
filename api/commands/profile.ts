@@ -20,6 +20,7 @@ export async function profile(interaction: any) {
     };
 
     console.log('[profile] →', process.env.PROFILE_HOOK_URL);
+    console.log('[profile] token', interaction.token.slice(0, 8) + '…', 'len', interaction.token.length);
 
     try {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
