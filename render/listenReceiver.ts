@@ -464,9 +464,12 @@ app.post('/profile-hook', async (req, res) => {
     const blob: any = new (globalThis as any).Blob([buffer], { type: 'image/png' });
     form.append('files[0]', blob, 'profile.png');
 
+    console.log(
+      '[profile-hook] sending to',
+      `https://discord.com/api/v10/webhooks/${appId}/${token.slice(0, 6)}…`
+    );
     const resp = await fetch(`https://discord.com/api/v10/webhooks/${appId}/${token}`, {
       method: 'POST',
-      headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` },
       body: form as any,
     });
 
