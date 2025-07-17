@@ -9,7 +9,7 @@ import {
 } from 'discord.js';
 
 // ---------- Profile card generation ----------
-import { createCanvas, loadImage } from '@napi-rs/canvas';
+import { Canvas, loadImage } from 'skia-canvas';
 import { supabase } from '../api/lib/supabase.js';
 
 // ---- In-memory session tracking ----
@@ -369,7 +369,7 @@ app.post('/profile-hook', async (req, res) => {
   // Build card
   const width = 550;
   const height = 160;
-  const canvas = createCanvas(width, height);
+  const canvas = new Canvas(width, height);
   const ctx: any = canvas.getContext('2d');
 
   const roundRect = (ctx: any, x: number, y: number, w: number, h: number, r: number) => {
@@ -421,7 +421,7 @@ app.post('/profile-hook', async (req, res) => {
   ctx.textBaseline = 'middle';
   ctx.fillText(username ?? 'Unknown', avatarX + avatarSize + 30, height / 2);
 
-  const buffer = await canvas.encode('png');
+  const buffer: Buffer = await (canvas as any).png;
 
   // Send follow-up message via webhook
   try {

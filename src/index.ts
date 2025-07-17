@@ -7,9 +7,7 @@ import {
   SlashCommandBuilder,
   Interaction,
   ChatInputCommandInteraction,
-  AttachmentBuilder,
 } from 'discord.js';
-import { createCanvas, loadImage } from '@napi-rs/canvas';
 import express from 'express';
 import type { Request, Response } from 'express';
 import { createClient } from '@supabase/supabase-js';
@@ -68,6 +66,7 @@ const commands = [
         .setRequired(false)
     ),
   new SlashCommandBuilder().setName('chat').setDescription('Prompt questions in #bot-chat'),
+  // The /profile command is handled by the Vercel serverless function, not this long-running bot.
   new SlashCommandBuilder().setName('profile').setDescription('Show your profile card'),
 ].map((c) => c.toJSON());
 
@@ -125,9 +124,8 @@ client.on('interactionCreate', async (interaction: Interaction) => {
     await handleListen(interaction);
   } else if (interaction.commandName === 'chat') {
     await handleChat(interaction);
-  } else if (interaction.commandName === 'profile') {
-    await handleProfile(interaction);
   }
+  // profile command is handled elsewhere
 });
 
 // -------------------  /connect command handler  --------------------
@@ -390,97 +388,7 @@ async function handleChat(interaction: ChatInputCommandInteraction) {
   }
 }
 
-// -------------------  /profile command handler  --------------------
-async function handleProfile(interaction: ChatInputCommandInteraction) {
-  const user = interaction.user;
-
-  // Build avatar URL (static PNG, 256px)
-  const avatarUrl = user.displayAvatarURL({ extension: 'png', size: 256, forceStatic: true });
-
-  // Persist/update profile row
-  try {
-    await supabase.from('profiles').upsert({
-      user_id: user.id,
-      username: user.username,
-      avatar_url: avatarUrl,
-      updated_at: new Date().toISOString(),
-    });
-  } catch (err) {
-    console.error('Supabase upsert failed', err);
-  }
-
-  // --------- Draw card ---------
-  const width = 550;
-  const height = 160;
-  const canvas = createCanvas(width, height);
-  const ctx: any = canvas.getContext('2d');
-
-  // Helper for rounded rectangle
-  const drawRoundedRect = (
-    ctx: any,
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-    r: number,
-  ) => {
-    ctx.beginPath();
-    ctx.moveTo(x + r, y);
-    ctx.lineTo(x + w - r, y);
-    ctx.arcTo(x + w, y, x + w, y + r, r);
-    ctx.lineTo(x + w, y + h - r);
-    ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
-    ctx.lineTo(x + r, y + h);
-    ctx.arcTo(x, y + h, x, y + h - r, r);
-    ctx.lineTo(x, y + r);
-    ctx.arcTo(x, y, x + r, y, r);
-    ctx.closePath();
-    ctx.fill();
-  };
-
-  // Background
-  ctx.fillStyle = '#1e1e1e';
-  drawRoundedRect(ctx, 0, 0, width, height, 18);
-
-  // Avatar
-  const avatarSize = 116;
-  const avatarX = 22;
-  const avatarY = (height - avatarSize) / 2;
-
-  try {
-    const avatarImg = await loadImage(avatarUrl);
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(avatarX + avatarSize / 2, avatarY + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2);
-    ctx.closePath();
-    ctx.clip();
-    ctx.drawImage(avatarImg, avatarX, avatarY, avatarSize, avatarSize);
-    ctx.restore();
-  } catch (imgErr) {
-    console.error('Failed to load avatar', imgErr);
-  }
-
-  // Status indicator (green dot)
-  const dotRadius = 12;
-  const dotX = avatarX + avatarSize - dotRadius;
-  const dotY = avatarY + avatarSize - dotRadius;
-  ctx.fillStyle = '#3ba55d';
-  ctx.beginPath();
-  ctx.arc(dotX, dotY, dotRadius, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Username text
-  ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 42px Sans';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(user.username, avatarX + avatarSize + 30, height / 2);
-
-  // Encode PNG buffer
-  const buffer = await canvas.encode('png');
-  const attachment = new AttachmentBuilder(buffer, { name: 'profile.png' });
-
-  await interaction.reply({ files: [attachment] });
-}
+// removed handleProfile implementation as rendering handled by Render server
 
 // -------------------  Spotify OAuth callback server  ---------------
 const app = express();
