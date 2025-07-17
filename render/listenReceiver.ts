@@ -8,6 +8,10 @@ import {
   Message,
 } from 'discord.js';
 
+// ---------- Profile card generation ----------
+import { createCanvas, loadImage } from '@napi-rs/canvas';
+import { supabase } from '../api/lib/supabase.js';
+
 // ---- In-memory session tracking ----
 interface ListenSession {
   channelId: string;
@@ -318,6 +322,124 @@ app.post('/music-hook', (req, res) => {
   musicSessions.set(channelId, { botId, timeout });
   console.log('Music listening activated for', channelId, 'bot', botId);
   return res.json({ status: 'ok' });
+});
+
+// ---------- Profile card generation ----------
+app.post('/profile-hook', async (req, res) => {
+  const {
+    user_id: userId,
+    username,
+    avatar,
+    application_id: appId,
+    interaction_token: token,
+  } = req.body as {
+    user_id?: string;
+    username?: string;
+    avatar?: string;
+    application_id?: string;
+    interaction_token?: string;
+  };
+
+  // Optional shared-secret check
+  const secret = process.env.PROFILE_HOOK_SECRET;
+  if (secret && req.get('x-profile-signature') !== secret) {
+    return res.status(401).json({ error: 'unauthorized' });
+  }
+
+  if (!userId || !appId || !token) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+
+  const avatarUrl = `https://cdn.discordapp.com/avatars/${userId}/${avatar}.png?size=256`;
+
+  // Upsert into Supabase (fire-and-forget)
+  (async () => {
+    try {
+      await supabase.from('profiles').upsert({
+        user_id: userId,
+        username: username ?? '',
+        avatar_url: avatarUrl,
+        updated_at: new Date().toISOString(),
+      });
+    } catch (e: any) {
+      console.error('[profile-hook] Supabase upsert error', e);
+    }
+  })();
+
+  // Build card
+  const width = 550;
+  const height = 160;
+  const canvas = createCanvas(width, height);
+  const ctx: any = canvas.getContext('2d');
+
+  const roundRect = (ctx: any, x: number, y: number, w: number, h: number, r: number) => {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.arcTo(x + w, y, x + w, y + r, r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+    ctx.lineTo(x + r, y + h);
+    ctx.arcTo(x, y + h, x, y + h - r, r);
+    ctx.lineTo(x, y + r);
+    ctx.arcTo(x, y, x + r, y, r);
+    ctx.closePath();
+    ctx.fill();
+  };
+
+  // Background
+  ctx.fillStyle = '#1e1e1e';
+  roundRect(ctx, 0, 0, width, height, 18);
+
+  // Avatar drawing
+  const avatarSize = 116;
+  const avatarX = 22;
+  const avatarY = (height - avatarSize) / 2;
+  try {
+    const img = await loadImage(avatarUrl);
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(avatarX + avatarSize / 2, avatarY + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2);
+    ctx.closePath();
+    ctx.clip();
+    ctx.drawImage(img, avatarX, avatarY, avatarSize, avatarSize);
+    ctx.restore();
+  } catch (err) {
+    console.error('[profile-hook] Avatar load error', err);
+  }
+
+  // Status circle
+  ctx.fillStyle = '#3ba55d';
+  const dotR = 12;
+  ctx.beginPath();
+  ctx.arc(avatarX + avatarSize - dotR, avatarY + avatarSize - dotR, dotR, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Username text
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 42px Sans';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(username ?? 'Unknown', avatarX + avatarSize + 30, height / 2);
+
+  const buffer = await canvas.encode('png');
+
+  // Send follow-up message via webhook
+  try {
+    const form: any = new (globalThis as any).FormData();
+    form.append('payload_json', JSON.stringify({ attachments: [{ id: 0, filename: 'profile.png' }] }));
+    const blob: any = new (globalThis as any).Blob([buffer], { type: 'image/png' });
+    form.append('files[0]', blob, 'profile.png');
+
+    await fetch(`https://discord.com/api/v10/webhooks/${appId}/${token}`, {
+      method: 'POST',
+      headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` },
+      body: form as any,
+    });
+  } catch (err) {
+    console.error('[profile-hook] Failed to send image', err);
+  }
+
+  res.json({ status: 'queued' });
 });
 
 // ---- Presence listener to push fun facts on song change ----
