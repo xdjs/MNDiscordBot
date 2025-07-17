@@ -110,7 +110,7 @@ const { OPENAI_API_KEY } = process.env;
 async function getFunFact(artist: string): Promise<string> {
   if (!OPENAI_API_KEY) return `${artist} is cool!`;
 
-  const prompt = `Generate a random fun fact (about 1-2 sentences) about the artist ${artist} that would be interesting to both new fans and superfans. 
+  const prompt = `Generate a short random fun fact (about 1-2 sentences) about the artist ${artist} that would be interesting to both new fans and superfans. 
   This should not be a well-known fact. 
   Do not provide or make up any false information.`;
 
@@ -464,11 +464,18 @@ app.post('/profile-hook', async (req, res) => {
     const blob: any = new (globalThis as any).Blob([buffer], { type: 'image/png' });
     form.append('files[0]', blob, 'profile.png');
 
-    await fetch(`https://discord.com/api/v10/webhooks/${appId}/${token}`, {
+    const resp = await fetch(`https://discord.com/api/v10/webhooks/${appId}/${token}`, {
       method: 'POST',
       headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` },
       body: form as any,
     });
+
+    if (!resp.ok) {
+      const text = await resp.text().catch(() => '');
+      console.error('[profile-hook] Discord replied', resp.status, text);
+    } else {
+      console.log('[profile-hook] sent image OK');
+    }
   } catch (err) {
     console.error('[profile-hook] Failed to send image', err);
   }

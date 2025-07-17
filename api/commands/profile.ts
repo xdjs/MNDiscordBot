@@ -22,12 +22,14 @@ export async function profile(interaction: any) {
     console.log('[profile] →', process.env.PROFILE_HOOK_URL);
 
     try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (process.env.PROFILE_HOOK_SECRET) {
+        headers['X-Profile-Signature'] = process.env.PROFILE_HOOK_SECRET;
+      }
+
       const resp = await fetch(process.env.PROFILE_HOOK_URL!, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Profile-Signature': process.env.PROFILE_HOOK_SECRET ?? '',
-        },
+        headers,
         body: JSON.stringify(payload),
       });
 
