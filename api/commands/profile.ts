@@ -19,6 +19,7 @@ export async function profile(interaction: any) {
       interaction_token: interaction.token,
     };
 
+    console.log('[profile] →', process.env.PROFILE_HOOK_URL);
     fetch(process.env.PROFILE_HOOK_URL!, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Profile-Signature': process.env.PROFILE_HOOK_SECRET ?? '' },
