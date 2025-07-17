@@ -19,6 +19,9 @@
     "@napi-rs/canvas": "^0.1.37",
     "discord-interactions": "^2.3.0"
   },
+  "engines": {
+    "node": "18.x"
+  },
   "devDependencies": {
     "typescript": "^5.2.2",
     "ts-node-dev": "^2.0.0",
