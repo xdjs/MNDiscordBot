@@ -8,6 +8,7 @@ import { tracks } from './commands/tracks.js';
 import { listen } from './commands/listen.js';
 import { help } from './commands/help.js';
 import { chat } from './commands/chat.js';
+import { profile } from './commands/profile.js';
 
 const publicKey = process.env.DISCORD_PUBLIC_KEY!;
 
@@ -73,6 +74,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         break;
       case 'chat':
         response = await chat(interaction.guild_id, interaction.channel_id);
+        break;
+      case 'profile':
+        response = await profile(interaction);
         break;
       default:
         response = {
