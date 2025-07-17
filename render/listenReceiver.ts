@@ -83,8 +83,7 @@ async function getFunFact(artist: string): Promise<string> {
 
   const prompt = `Generate a random fun fact about the artist ${artist} that would be interesting to both new fans and superfans. 
   This should not be a well-known fact. 
-  Do not provide or make up any false information.
-  If you cannot find anything then respond with "I'm sorry but I couldn't find anything about ${artist}."`;
+  Do not provide or make up any false information.`;
 
   try {
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -326,6 +325,8 @@ app.post('/music-hook', (req, res) => {
 
 // ---------- Profile card generation ----------
 app.post('/profile-hook', async (req, res) => {
+  console.log('[profile-hook] hit', new Date().toISOString());
+
   const {
     user_id: userId,
     username,
