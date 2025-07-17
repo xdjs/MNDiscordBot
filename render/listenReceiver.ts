@@ -380,6 +380,8 @@ app.post('/profile-hook', async (req, res) => {
     return res.status(401).json({ error: 'unauthorized' });
   }
 
+  console.log('[profile-hook] received token', (token ?? '').slice(0, 8) + '…', 'len', (token ?? '').length);
+
   if (!userId || !appId || !token) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
