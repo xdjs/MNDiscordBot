@@ -19,6 +19,7 @@ export async function profile(interaction: any) {
       interaction_token: interaction.token,
     };
 
+    console.log('[profile] app', interaction.application_id);
     console.log('[profile] →', process.env.PROFILE_HOOK_URL);
     console.log('[profile] token', interaction.token.slice(0, 8) + '…', 'len', interaction.token.length);
 
