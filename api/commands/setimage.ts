@@ -23,13 +23,22 @@ export async function setimage(userId: string) {
     };
   }
 
-  // 2. Update profiles row with background_url
+  // 2. Update existing profile row (fallback to insert if none)
   try {
-    await supabase.from('profiles').upsert({
-      user_id: userId,
-      bg_image_url: imgRow.image_url,
-      updated_at: new Date().toISOString(),
-    });
+    const { error: updErr, data: updData } = await supabase
+      .from('profiles')
+      .update({ bg_image_url: imgRow.image_url, updated_at: new Date().toISOString() })
+      .eq('user_id', userId)
+      .select();
+
+    if (updErr || (Array.isArray(updData) && updData.length === 0)) {
+      // No row existed – insert one with minimal fields
+      await supabase.from('profiles').insert({
+        user_id: userId,
+        bg_image_url: imgRow.image_url,
+        updated_at: new Date().toISOString(),
+      });
+    }
   } catch (err) {
     console.error('[setimage] DB error', err);
     return {
