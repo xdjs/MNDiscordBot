@@ -35,9 +35,11 @@ export async function profile(interaction: any) {
         body: JSON.stringify(payload),
       })
         .then(async (resp) => {
+          console.log('[profile] hook status', resp.status);
+          const text = await resp.text().catch(() => '');
+          console.log('[profile] hook body', text.slice(0, 200));
           if (!resp.ok) {
-            const text = await resp.text().catch(() => '');
-            console.error(`[profile] hook responded ${resp.status}: ${text}`);
+            console.error('[profile] non-OK', resp.status);
           }
         })
         .catch((err) => {
