@@ -390,14 +390,18 @@ app.post('/profile-hook', async (req, res) => {
   const avatarUrl = `https://cdn.discordapp.com/avatars/${userId}/${avatar}.png?size=256`;
 
   // --- Reuse cached card if avatar hasn't changed ---
+  let bgUrl: string | null = null;
+  let bgImg: any = null;
   try {
     const { data: existing } = await supabase
       .from('profiles')
-      .select('card_url, avatar_url')
+      .select('card_url, avatar_url, bg_image_url')
       .eq('user_id', userId)
       .single();
 
-    if (existing?.card_url && existing.avatar_url === avatarUrl) {
+    bgUrl = existing?.bg_image_url || null;
+
+    if (existing?.card_url && existing.avatar_url === avatarUrl && bgUrl === existing.bg_image_url) {
       // Send embed with cached image URL and exit early
       await fetch(`https://discord.com/api/v10/webhooks/${appId}/${token}?wait=true`, {
         method: 'POST',
@@ -410,6 +414,15 @@ app.post('/profile-hook', async (req, res) => {
   } catch (cacheErr) {
     console.error('[profile-hook] cache lookup error', cacheErr);
     // fall through to regenerate
+  }
+
+  // If bg image set, load it
+  if (typeof bgUrl === 'string') {
+    try {
+      bgImg = await loadImage(bgUrl);
+    } catch (err) {
+      console.error('[profile-hook] Failed to load bg image', err);
+    }
   }
 
   // Build card
@@ -434,8 +447,17 @@ app.post('/profile-hook', async (req, res) => {
   };
 
   // Background
-  ctx.fillStyle = '#1e1e1e';
-  roundRect(ctx, 0, 0, width, height, 18);
+  if (bgImg) {
+    ctx.save();
+    ctx.beginPath();
+    roundRect(ctx, 0, 0, width, height, 18);
+    ctx.clip();
+    ctx.drawImage(bgImg, 0, 0, width, height);
+    ctx.restore();
+  } else {
+    ctx.fillStyle = '#1e1e1e';
+    roundRect(ctx, 0, 0, width, height, 18);
+  }
 
   // Avatar drawing
   const avatarSize = 116;
@@ -511,6 +533,7 @@ app.post('/profile-hook', async (req, res) => {
         user_id: userId,
         username: username ?? '',
         avatar_url: avatarUrl,
+        bg_image_url: bgUrl,
         card_url: cardUrl,
         updated_at: new Date().toISOString(),
       });
