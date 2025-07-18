@@ -111,7 +111,7 @@ const { OPENAI_API_KEY } = process.env;
 async function getFunFact(artist: string): Promise<string> {
   if (!OPENAI_API_KEY) return `${artist} is cool!`;
 
-  const prompt = `"Give me a true, lesser-known, and fun fact about ${artist}.
+  const prompt = `"Give me a true, lesser-known, and fun fact about ${artist} (about 1- 2 sentences).
    Include the source or context (like an interview, social media post, or official profile) where this fact is mentioned."`;
 
   try {
