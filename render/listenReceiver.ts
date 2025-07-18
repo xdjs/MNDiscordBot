@@ -111,7 +111,7 @@ const { OPENAI_API_KEY } = process.env;
 async function getFunFact(artist: string): Promise<string> {
   if (!OPENAI_API_KEY) return `${artist} is cool!`;
 
-  const prompt = `"Give me a true, lesser-known, and fun fact about ${artist} (about 40 words).
+  const prompt = `"Give me a true, lesser-known, and fun fact about ${artist} (about 1- 2 sentences).
    Include the source or context (like an interview, social media post, or official profile) where this fact is mentioned."`;
 
   try {
@@ -300,7 +300,6 @@ app.post('/listen-hook', async (req, res) => {
     await rest.post(Routes.channelMessages(channelId), {
       body: {
         content: `🎶 ${fact}`,
-        tts: true,
       },
     });
 
@@ -523,7 +522,6 @@ client.on('presenceUpdate', async (oldPresence, newPresence) => {
     await rest.post(Routes.channelMessages(session.channelId), {
       body: {
         content: `🎶 ${fact}`,
-        tts: true,
       },
     });
   } catch (err) {
@@ -578,7 +576,7 @@ client.on('messageCreate', async (message: Message) => {
 
       try {
         await rest.post(Routes.channelMessages(destChannelId), {
-          body: { content: `🎶 ${fact}`, tts: true },
+          body: { content: `🎶 ${fact}` },
         });
       } catch (err) {
         console.error('Failed to send song fact', err);
