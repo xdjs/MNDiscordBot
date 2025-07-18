@@ -111,10 +111,8 @@ const { OPENAI_API_KEY } = process.env;
 async function getFunFact(artist: string): Promise<string> {
   if (!OPENAI_API_KEY) return `${artist} is cool!`;
 
-  const prompt = `Generate a short random fun fact (about 40 words) about the artist ${artist} that would be interesting to both new fans and superfans. 
-  Do not mention what their music is known for (to keep the facts short and sweet).
-  This should not be a well-known fact. 
-  Do not provide or make up any false information. The information needs to come from credible sources.`;
+  const prompt = `"Give me a true, lesser-known, and fun fact about ${artist} (about 40 words).
+   Include the source or context (like an interview, social media post, or official profile) where this fact is mentioned."`;
 
   try {
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
