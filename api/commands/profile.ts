@@ -29,16 +29,20 @@ export async function profile(interaction: any) {
         headers['X-Profile-Signature'] = process.env.PROFILE_HOOK_SECRET;
       }
 
-      const resp = await fetch(process.env.PROFILE_HOOK_URL!, {
+      fetch(process.env.PROFILE_HOOK_URL!, {
         method: 'POST',
         headers,
         body: JSON.stringify(payload),
-      });
-
-      if (!resp.ok) {
-        const text = await resp.text().catch(() => '');
-        console.error(`[profile] hook responded ${resp.status}: ${text}`);
-      }
+      })
+        .then(async (resp) => {
+          if (!resp.ok) {
+            const text = await resp.text().catch(() => '');
+            console.error(`[profile] hook responded ${resp.status}: ${text}`);
+          }
+        })
+        .catch((err) => {
+          console.error('[profile] fetch error', err);
+        });
     } catch (err) {
       console.error('[profile] fetch error', err);
     }
