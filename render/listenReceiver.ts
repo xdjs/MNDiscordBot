@@ -110,7 +110,8 @@ const { OPENAI_API_KEY } = process.env;
 async function getFunFact(artist: string): Promise<string> {
   if (!OPENAI_API_KEY) return `${artist} is cool!`;
 
-  const prompt = `Generate a short random fun fact (about 1-2 sentences) about the artist ${artist} that would be interesting to both new fans and superfans. 
+  const prompt = `Generate a short random fun fact (about 40 words) about the artist ${artist} that would be interesting to both new fans and superfans. 
+  Do not mention what their music is known for (to keep the facts short and sweet).
   This should not be a well-known fact. 
   Do not provide or make up any false information.`;
 
