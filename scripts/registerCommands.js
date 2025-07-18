@@ -27,6 +27,7 @@ const commands = [
   new SlashCommandBuilder().setName('chat').setDescription('Prompt questions in #bot-chat'),
   new SlashCommandBuilder().setName('profile').setDescription('Show your profile card'),
   new SlashCommandBuilder().setName('image').setDescription('Generate art based on your top 10 Spotify tracks'),
+  new SlashCommandBuilder().setName('setimage').setDescription('Use your generated image as profile background'),
 ].map((c) => c.toJSON());
 
 // Utility to strip Discord-generated fields so we can compare command definitions
