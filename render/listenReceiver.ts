@@ -472,12 +472,16 @@ app.post('/profile-hook', async (req, res) => {
   let cardUrl: string | null = null;
   try {
     const filePath = `cards/${userId}.png`;
-    await supabase.storage
+    const { error: uploadErr } = await supabase.storage
       .from('profile-cards')
       .upload(filePath, buffer, { upsert: true, contentType: 'image/png' });
 
-    const { data } = supabase.storage.from('profile-cards').getPublicUrl(filePath);
-    cardUrl = data.publicUrl;
+    if (uploadErr) {
+      console.error('[profile-hook] card upload error', uploadErr);
+    } else {
+      const { data } = supabase.storage.from('profile-cards').getPublicUrl(filePath);
+      cardUrl = data.publicUrl;
+    }
   } catch (uploadErr) {
     console.error('[profile-hook] card upload error', uploadErr);
   }
