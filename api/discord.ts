@@ -9,6 +9,7 @@ import { listen } from './commands/listen.js';
 import { help } from './commands/help.js';
 import { chat } from './commands/chat.js';
 import { profile } from './commands/profile.js';
+import { image as imageCommand } from './commands/image.js';
 
 const publicKey = process.env.DISCORD_PUBLIC_KEY!;
 
@@ -78,6 +79,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         break;
       case 'profile':
         response = await profile(interaction);
+        break;
+      case 'image':
+        response = await imageCommand(interaction);
         break;
       default:
         response = {
