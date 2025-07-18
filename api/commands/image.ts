@@ -18,6 +18,10 @@ export async function image(interaction: any) {
       interaction_token: interaction.token,
     };
 
+    console.log('[image] app', interaction.application_id);
+    console.log('[image] →', process.env.IMAGE_HOOK_URL);
+    console.log('[image] token', interaction.token.slice(0, 8) + '…', 'len', interaction.token.length);
+
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (process.env.IMAGE_HOOK_SECRET) {
       headers['X-Image-Signature'] = process.env.IMAGE_HOOK_SECRET;
@@ -27,9 +31,17 @@ export async function image(interaction: any) {
       method: 'POST',
       headers,
       body: JSON.stringify(payload),
-    }).catch((err) => {
-      console.error('[image] hook error', err);
-    });
+    })
+      .then(async (resp) => {
+        console.log('[image] hook status', resp.status);
+        const body = await resp.text().catch(() => '');
+        if (!resp.ok) {
+          console.error('[image] hook body', body.slice(0, 200));
+        }
+      })
+      .catch((err) => {
+        console.error('[image] fetch error', err);
+      });
   } catch (err) {
     console.error('[image] Failed to queue image hook', err);
   }
