@@ -5,7 +5,12 @@ const LISTEN_HOOK_URL = process.env.LISTEN_HOOK_URL;
 const MUSIC_HOOK_URL = process.env.MUSIC_HOOK_URL;
 const BOT_TOKEN = process.env.DISCORD_BOT_TOKEN!;
 
-export async function listen(userId: string, channelId: string, guildId: string | undefined) {
+export async function listen(
+  userId: string,
+  channelId: string,
+  guildId: string | undefined,
+  invokerId: string,
+) {
   try {
     // 1. Fetch the user object to see if the target is a bot account
     const usrRes = await fetch(`https://discord.com/api/v10/users/${userId}`, {
@@ -31,7 +36,7 @@ export async function listen(userId: string, channelId: string, guildId: string 
           return {
             type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
             data: {
-              content: `🎶 I'll listen for now-playing messages from <@${userId}>!`,
+              content: `🎶 Listening for now-playing messages from <@${userId}>!`,
             },
           };
         }
@@ -76,11 +81,34 @@ export async function listen(userId: string, channelId: string, guildId: string 
     created_at: new Date().toISOString(),
   });
 
+  // Prepare human-friendly username (optional)
+  let targetUsername: string | null = null;
+  try {
+    const userRes = await fetch(`https://discord.com/api/v10/users/${userId}`, {
+      headers: { Authorization: `Bot ${BOT_TOKEN}` },
+    });
+    if (userRes.ok) {
+      const uJson = (await userRes.json()) as { username?: string };
+      targetUsername = uJson.username ?? null;
+    }
+  } catch {/* ignore */}
+
+  const listeningToSelf = userId === invokerId;
+
   let reply: string;
   if (hookStatus === 'no-spotify') {
-    reply = '⚠️ You are not currently listening to Spotify **or** “Display current activity” is disabled. Please start a song and enable the setting, then try /listen again.';
+    if (listeningToSelf) {
+      reply = '⚠️ You are not currently listening to Spotify **or** “Display current activity” is disabled. Please start a song and enable the setting, then try /listen again.';
+    } else {
+      reply = `⚠️ <@${userId}> is not currently listening to Spotify.`;
+    }
   } else {
-    reply = "🎧 Listening session started! I'll send you some fun facts.";
+    if (listeningToSelf) {
+      reply = "🎧 Listening session started! I'll send you some fun facts.";
+    } else {
+      const namePart = targetUsername ? `${targetUsername}'s` : `<@${userId}>'s`;
+      reply = `🎧 Listening to ${namePart} Spotify status! I'll send you some fun facts.`;
+    }
   }
 
   return {

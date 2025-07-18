@@ -39,6 +39,7 @@ const chatSessions = new Map<string, ChatSession>(); // key = channelId
 interface MusicSession {
   botId: string;
   timeout: NodeJS.Timeout;
+  factCount: number;
 }
 const musicSessions = new Map<string, MusicSession>(); // key = channelId
 
@@ -352,7 +353,7 @@ app.post('/music-hook', (req, res) => {
     console.log(`Music session for ${channelId} closed due to inactivity.`);
   }, 2 * 60 * 1000);
 
-  musicSessions.set(channelId, { botId, timeout });
+  musicSessions.set(channelId, { botId, timeout, factCount: 0 });
   console.log('Music listening activated for', channelId, 'bot', botId);
   return res.json({ status: 'ok' });
 });
@@ -552,17 +553,25 @@ client.on('messageCreate', async (message: Message) => {
       const nowPlayingLine = npMatch[1].trim();
       const fact = await getSongFunFact(nowPlayingLine);
 
-      // Reset inactivity timer
+      // Increment fact count and reset inactivity timer
+      musicSession.factCount += 1;
       scheduleMusicTimeout(message.channel.id);
 
-      // Try to send to voice channel if bot is connected
-      let destinationChannel: any = message.channel;
+      // End session after 3 fun facts
+      if (musicSession.factCount >= 3) {
+        if (musicSession.timeout) clearTimeout(musicSession.timeout);
+        musicSessions.delete(message.channel.id);
+        console.log(`Music session for ${message.channel.id} closed after 3 fun facts.`);
+      }
+
+      // Determine destination: prefer the voice channel the music bot is currently in
+      let destChannelId = message.channel.id; // default to current text channel
       if (message.guild) {
         try {
           const botMember = await message.guild.members.fetch(message.author.id);
           const voiceChan = botMember.voice?.channel;
-          if (voiceChan && (voiceChan as any).send) {
-            destinationChannel = voiceChan as any;
+          if (voiceChan) {
+            destChannelId = voiceChan.id;
           }
         } catch (err) {
           console.error('Failed to resolve bot voice channel', err);
@@ -570,7 +579,9 @@ client.on('messageCreate', async (message: Message) => {
       }
 
       try {
-        await destinationChannel.send({ content: `🎶 ${fact}`, tts: true });
+        await rest.post(Routes.channelMessages(destChannelId), {
+          body: { content: `🎶 ${fact}`, tts: true },
+        });
       } catch (err) {
         console.error('Failed to send song fact', err);
       }
