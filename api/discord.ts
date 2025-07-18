@@ -66,6 +66,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           targetUserId,
           interaction.channel_id,
           interaction.guild_id,
+          interaction.member.user.id,
         );
         break;
       }
