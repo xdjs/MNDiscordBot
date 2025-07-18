@@ -114,7 +114,7 @@ async function getFunFact(artist: string): Promise<string> {
   const prompt = `Generate a short random fun fact (about 40 words) about the artist ${artist} that would be interesting to both new fans and superfans. 
   Do not mention what their music is known for (to keep the facts short and sweet).
   This should not be a well-known fact. 
-  Do not provide or make up any false information.`;
+  Do not provide or make up any false information. The information needs to come from credible sources.`;
 
   try {
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -473,7 +473,7 @@ app.post('/profile-hook', async (req, res) => {
       '[profile-hook] sending to',
       `https://discord.com/api/v10/webhooks/${appId}/${token.slice(0, 6)}…`
     );
-    const resp = await fetch(`https://discord.com/api/v10/webhooks/${appId}/${token}`, {
+    const resp = await fetch(`https://discord.com/api/v10/webhooks/${appId}/${token}?wait=true`, {
       method: 'POST',
       body: form as any,
     });
