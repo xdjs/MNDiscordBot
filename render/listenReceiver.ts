@@ -111,7 +111,7 @@ const { OPENAI_API_KEY } = process.env;
 async function getFunFact(artist: string): Promise<string> {
   if (!OPENAI_API_KEY) return `${artist} is cool!`;
 
-  const prompt = `"Give me a true, lesser-known, and fun fact about ${artist} (about 150 characters).
+  const prompt = `"Give me a true, lesser-known, and fun fact about artist or band: ${artist} (under 150 characters).
    Include the source or context (like an interview, social media post, or official profile) where this fact is mentioned."`;
 
   try {
@@ -388,19 +388,28 @@ app.post('/profile-hook', async (req, res) => {
 
   const avatarUrl = `https://cdn.discordapp.com/avatars/${userId}/${avatar}.png?size=256`;
 
-  // Upsert into Supabase (fire-and-forget)
-  (async () => {
-    try {
-      await supabase.from('profiles').upsert({
-        user_id: userId,
-        username: username ?? '',
-        avatar_url: avatarUrl,
-        updated_at: new Date().toISOString(),
+  // --- Reuse cached card if avatar hasn't changed ---
+  try {
+    const { data: existing } = await supabase
+      .from('profiles')
+      .select('card_url, avatar_url')
+      .eq('user_id', userId)
+      .single();
+
+    if (existing?.card_url && existing.avatar_url === avatarUrl) {
+      // Send embed with cached image URL and exit early
+      await fetch(`https://discord.com/api/v10/webhooks/${appId}/${token}?wait=true`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ embeds: [{ image: { url: existing.card_url } }] }),
       });
-    } catch (e: any) {
-      console.error('[profile-hook] Supabase upsert error', e);
+
+      return res.json({ status: 'cached' });
     }
-  })();
+  } catch (cacheErr) {
+    console.error('[profile-hook] cache lookup error', cacheErr);
+    // fall through to regenerate
+  }
 
   // Build card
   const width = 550;
@@ -459,31 +468,55 @@ app.post('/profile-hook', async (req, res) => {
 
   const buffer: Buffer = await (canvas as any).png;
 
-  // Send follow-up message via webhook
+  // --- Upload card to Supabase Storage ---
+  let cardUrl: string | null = null;
   try {
-    const form: any = new (globalThis as any).FormData();
-    form.append('payload_json', JSON.stringify({ attachments: [{ id: 0, filename: 'profile.png' }] }));
-    const blob: any = new (globalThis as any).Blob([buffer], { type: 'image/png' });
-    form.append('files[0]', blob, 'profile.png');
+    const filePath = `cards/${userId}.png`;
+    await supabase.storage
+      .from('profile-cards')
+      .upload(filePath, buffer, { upsert: true, contentType: 'image/png' });
 
-    console.log(
-      '[profile-hook] sending to',
-      `https://discord.com/api/v10/webhooks/${appId}/${token.slice(0, 6)}…`
-    );
+    const { data } = supabase.storage.from('profile-cards').getPublicUrl(filePath);
+    cardUrl = data.publicUrl;
+  } catch (uploadErr) {
+    console.error('[profile-hook] card upload error', uploadErr);
+  }
+
+  // Fallback: if upload failed, skip sending
+  if (!cardUrl) {
+    return res.status(500).json({ error: 'Failed to upload card' });
+  }
+
+  // Send follow-up message via embed
+  try {
     const resp = await fetch(`https://discord.com/api/v10/webhooks/${appId}/${token}?wait=true`, {
       method: 'POST',
-      body: form as any,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ embeds: [{ image: { url: cardUrl } }] }),
     });
 
     if (!resp.ok) {
       const text = await resp.text().catch(() => '');
       console.error('[profile-hook] Discord replied', resp.status, text);
-    } else {
-      console.log('[profile-hook] sent image OK');
     }
   } catch (err) {
-    console.error('[profile-hook] Failed to send image', err);
+    console.error('[profile-hook] Failed to send embed', err);
   }
+
+  // Upsert profile row with new card_url
+  (async () => {
+    try {
+      await supabase.from('profiles').upsert({
+        user_id: userId,
+        username: username ?? '',
+        avatar_url: avatarUrl,
+        card_url: cardUrl,
+        updated_at: new Date().toISOString(),
+      });
+    } catch (e: any) {
+      console.error('[profile-hook] Supabase upsert error', e);
+    }
+  })();
 
   res.json({ status: 'queued' });
 });
