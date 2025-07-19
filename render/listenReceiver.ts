@@ -494,10 +494,10 @@ app.post('/profile-hook', async (req, res) => {
   // --- Upload card to Supabase Storage ---
   let cardUrl: string | null = null;
   try {
-    const filePath = `cards/${userId}.png`;
+    const filePath = `cards/${userId}-${Date.now()}.png`; // unique filename to bust Discord cache
     await supabase.storage
       .from('profile-cards')
-      .upload(filePath, buffer, { upsert: true, contentType: 'image/png' });
+      .upload(filePath, buffer, { upsert: false, contentType: 'image/png' });
 
     const { data } = supabase.storage.from('profile-cards').getPublicUrl(filePath);
     cardUrl = data.publicUrl;
