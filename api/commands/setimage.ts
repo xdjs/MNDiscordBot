@@ -27,7 +27,7 @@ export async function setimage(userId: string) {
   try {
     const { error: updErr, data: updData } = await supabase
       .from('profiles')
-      .update({ bg_image_url: imgRow.image_url, updated_at: new Date().toISOString() })
+      .update({ bg_image_url: imgRow.image_url, card_url: null, updated_at: new Date().toISOString() })
       .eq('user_id', userId)
       .select();
 
@@ -36,6 +36,7 @@ export async function setimage(userId: string) {
       await supabase.from('profiles').insert({
         user_id: userId,
         bg_image_url: imgRow.image_url,
+        card_url: null,
         updated_at: new Date().toISOString(),
       });
     }
