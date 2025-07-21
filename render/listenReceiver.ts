@@ -403,8 +403,8 @@ app.post('/profile-hook', async (req, res) => {
 
     if (existing?.card_url && existing.avatar_url === avatarUrl && bgUrl === existing.bg_image_url) {
       // Send embed with cached image URL and exit early
-      await fetch(`https://discord.com/api/v10/webhooks/${appId}/${token}?wait=true`, {
-        method: 'POST',
+      await fetch(`https://discord.com/api/v10/webhooks/${appId}/${token}/messages/@original`, {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ embeds: [{ image: { url: existing.card_url } }] }),
       });
@@ -512,8 +512,8 @@ app.post('/profile-hook', async (req, res) => {
 
   // Send follow-up message via embed
   try {
-    const resp = await fetch(`https://discord.com/api/v10/webhooks/${appId}/${token}?wait=true`, {
-      method: 'POST',
+    const resp = await fetch(`https://discord.com/api/v10/webhooks/${appId}/${token}/messages/@original`, {
+      method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ embeds: [{ image: { url: cardUrl } }] }),
     });
@@ -604,7 +604,7 @@ app.post('/image-hook', async (req, res) => {
       .maybeSingle();
 
     if (error || !data) {
-      await fetch(`https://discord.com/api/v10/webhooks/${appId}/${token}?wait=true`, {
+      await fetch(`https://discord.com/api/v10/webhooks/${appId}/${token}/messages/@original`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -632,7 +632,7 @@ app.post('/image-hook', async (req, res) => {
     }
 
     if (!topRes.ok) {
-      await fetch(`https://discord.com/api/v10/webhooks/${appId}/${token}?wait=true`, {
+      await fetch(`https://discord.com/api/v10/webhooks/${appId}/${token}/messages/@original`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: 'Failed to fetch your top tracks. Please try again later.' }),
@@ -649,8 +649,8 @@ app.post('/image-hook', async (req, res) => {
         .maybeSingle();
 
       if (existingImg?.image_url) {
-        await fetch(`https://discord.com/api/v10/webhooks/${appId}/${token}?wait=true`, {
-          method: 'POST',
+        await fetch(`https://discord.com/api/v10/webhooks/${appId}/${token}/messages/@original`, {
+          method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ embeds: [{ image: { url: existingImg.image_url } }] }),
         });
@@ -682,7 +682,7 @@ app.post('/image-hook', async (req, res) => {
     });
 
     if (!imgRes.ok) {
-      await fetch(`https://discord.com/api/v10/webhooks/${appId}/${token}?wait=true`, {
+      await fetch(`https://discord.com/api/v10/webhooks/${appId}/${token}/messages/@original`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: 'Failed to generate image. Please try again later.' }),
@@ -694,7 +694,7 @@ app.post('/image-hook', async (req, res) => {
     const imageUrlRemote = imgJson.data?.[0]?.url;
 
     if (!imageUrlRemote) {
-      await fetch(`https://discord.com/api/v10/webhooks/${appId}/${token}?wait=true`, {
+      await fetch(`https://discord.com/api/v10/webhooks/${appId}/${token}/messages/@original`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: 'Image generation returned no result.' }),
@@ -721,8 +721,8 @@ app.post('/image-hook', async (req, res) => {
     }
 
     // Send embed
-    await fetch(`https://discord.com/api/v10/webhooks/${appId}/${token}?wait=true`, {
-      method: 'POST',
+    await fetch(`https://discord.com/api/v10/webhooks/${appId}/${token}/messages/@original`, {
+      method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ embeds: [{ image: { url: finalUrl } }] }),
     });
