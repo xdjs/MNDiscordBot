@@ -14,10 +14,12 @@ import { supabase } from '../api/lib/supabase.js';
 import { spotifyClientId, spotifyClientSecret } from '../api/lib/spotify.js';
 
 // ---- Helper to PATCH original interaction and log response ----
-async function patchOriginal(appId: string, token: string, body: any, tag = 'patch') {
+// Send follow-up message to the interaction webhook so Discord pushes a new message event.
+// Using ?wait=true lets us log status/body for debugging.
+async function patchOriginal(appId: string, token: string, body: any, tag = 'follow') {
   try {
-    const resp = await fetch(`https://discord.com/api/v10/webhooks/${appId}/${token}/messages/@original`, {
-      method: 'PATCH',
+    const resp = await fetch(`https://discord.com/api/v10/webhooks/${appId}/${token}?wait=true`, {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
