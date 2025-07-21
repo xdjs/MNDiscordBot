@@ -13,6 +13,7 @@ if (!token || !clientId) {
 const commands = [
   new SlashCommandBuilder().setName('hi').setDescription('Say hi!'),
   new SlashCommandBuilder().setName('connect').setDescription('Link your Spotify account'),
+  new SlashCommandBuilder().setName('disconnect').setDescription('Unlink your Spotify account'),
   new SlashCommandBuilder().setName('tracks').setDescription('Get your top 10 Spotify tracks'),
   new SlashCommandBuilder()
     .setName('listen')
