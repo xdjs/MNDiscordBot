@@ -34,11 +34,25 @@ export async function image(interaction: any) {
       await fetch(healthUrl.toString(), { method: 'GET' }).catch(() => {});
     } catch {/* ignore */}
 
-    fetch(process.env.IMAGE_HOOK_URL!, {
+    const postOnce = () => fetch(process.env.IMAGE_HOOK_URL!, {
       method: 'POST',
       headers,
       body: JSON.stringify(payload),
-    })
+    });
+
+    const postWithRetry = async () => {
+      try {
+        return await postOnce();
+      } catch (err: any) {
+        if (err?.code === 'ECONNRESET') {
+          await new Promise((r) => setTimeout(r, 1000));
+          return postOnce();
+        }
+        throw err;
+      }
+    };
+
+    postWithRetry()
       .then(async (resp) => {
         console.log('[image] hook status', resp.status);
         const body = await resp.text().catch(() => '');
