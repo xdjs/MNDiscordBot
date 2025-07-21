@@ -29,6 +29,13 @@ export async function profile(interaction: any) {
         headers['X-Profile-Signature'] = process.env.PROFILE_HOOK_SECRET;
       }
 
+      // 0. Ping health endpoint to wake Render (handles cold starts)
+      try {
+        const healthUrl = new URL(process.env.PROFILE_HOOK_URL!);
+        healthUrl.pathname = '/_health';
+        await fetch(healthUrl.toString(), { method: 'GET' }).catch(() => {});
+      } catch {/* ignore */}
+
       fetch(process.env.PROFILE_HOOK_URL!, {
         method: 'POST',
         headers,

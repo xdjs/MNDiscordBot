@@ -265,6 +265,8 @@ async function ensureReady() {
 const app = express();
 app.use(express.json());
 
+app.get('/_health', (_, res) => res.send('ok'));
+
 app.post('/listen-hook', async (req, res) => {
   const { user_id: userId, channel_id: channelId, guild_id: guildId } = req.body as {
     user_id?: string;
