@@ -1,15 +1,42 @@
 import { InteractionResponseType } from 'discord-interactions';
 import 'dotenv/config';
+import { supabase } from '../lib/supabase.js';
 
 /**
  * Queues an image-generation job on Render and immediately returns a deferred response.
  * The heavy lifting happens in the Render service (see /image-hook).
  */
 export async function image(interaction: any) {
-  // 1. Acknowledge within 3 s so Discord doesn’t time-out
-  const deferred = { type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE };
+  const userId = interaction.member.user.id;
 
-  // 2. Fire-and-forget webhook to Render for image generation
+  // 1. Check for cached image
+  try {
+    const { data: existing } = await supabase
+      .from('track_images')
+      .select('image_url')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (existing?.image_url) {
+      return {
+        type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+        data: { embeds: [{ image: { url: existing.image_url } }] },
+      };
+    }
+  } catch (cacheErr) {
+    console.error('[image] cache lookup error', cacheErr);
+  }
+
+  // 2. Send an immediate ephemeral response while generating
+  const immediateResponse = {
+    type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+    data: {
+      content: '🎨 Generating your personalized image… this may take a minute.',
+      flags: 64, // ephemeral so only the user sees it
+    },
+  };
+
+  // 3. Fire-and-forget webhook to Render for image generation
   try {
     const { user } = interaction.member;
     const payload = {
@@ -67,5 +94,5 @@ export async function image(interaction: any) {
     console.error('[image] Failed to queue image hook', err);
   }
 
-  return deferred;
+  return immediateResponse;
 } 
