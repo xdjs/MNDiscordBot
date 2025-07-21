@@ -661,7 +661,7 @@ app.post('/image-hook', async (req, res) => {
       (t: any, i: number) => `${i + 1}. ${t.name} – ${t.artists.map((a: any) => a.name).join(', ')}`,
     );
     const prompt =
-      `Create a cohesive, high-quality personlized picture of someone listening to the following songs:\n` +
+      `Create a cohesive, high-quality personlized picture (like someone is listening to them in their room)of someone listening to the following songs:\n` +
       tracksArray.join('\n') +
       `\nDo not include any text in the image, other than the song/artist names.`;
 
@@ -695,10 +695,10 @@ app.post('/image-hook', async (req, res) => {
     try {
       const resp = await fetch(imageUrlRemote);
       const buf = Buffer.from(await resp.arrayBuffer());
-      const filePath = `top_tracks/${userId}.png`;
+      const filePath = `top_tracks/${userId}-${Date.now()}.png`; // unique filename to bypass Discord cache
       await supabase.storage
         .from('track-images')
-        .upload(filePath, buf, { upsert: true, contentType: 'image/png' });
+        .upload(filePath, buf, { upsert: false, contentType: 'image/png' });
 
       const { data: pub } = supabase.storage.from('track-images').getPublicUrl(filePath);
       if (pub?.publicUrl) {
@@ -708,21 +708,19 @@ app.post('/image-hook', async (req, res) => {
       console.error('[image-hook] image upload error', uploadErr);
     }
 
-    // Send embed
-    await patchOriginal(appId, token, { embeds: [{ image: { url: finalUrl } }] });
+    // Cache record in DB first so subsequent /setimage picks up correct URL
+    try {
+      await supabase.from('track_images').upsert({
+        user_id: userId,
+        image_url: finalUrl,
+        updated_at: new Date().toISOString(),
+      });
+    } catch (err) {
+      console.error('[image-hook] upsert error', err);
+    }
 
-    // Cache record in DB (fire-and-forget)
-    (async () => {
-      try {
-        await supabase.from('track_images').upsert({
-          user_id: userId,
-          image_url: finalUrl,
-          updated_at: new Date().toISOString(),
-        });
-      } catch (err) {
-        console.error('[image-hook] upsert error', err);
-      }
-    })();
+    // Send embed after DB is updated
+    await patchOriginal(appId, token, { embeds: [{ image: { url: finalUrl } }] });
 
     return res.json({ status: 'done' });
   } catch (err) {
