@@ -27,6 +27,13 @@ export async function image(interaction: any) {
       headers['X-Image-Signature'] = process.env.IMAGE_HOOK_SECRET;
     }
 
+    // Ping health endpoint first to wake Render
+    try {
+      const healthUrl = new URL(process.env.IMAGE_HOOK_URL!);
+      healthUrl.pathname = '/_health';
+      await fetch(healthUrl.toString(), { method: 'GET' }).catch(() => {});
+    } catch {/* ignore */}
+
     fetch(process.env.IMAGE_HOOK_URL!, {
       method: 'POST',
       headers,
