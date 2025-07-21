@@ -1,14 +1,40 @@
 import { InteractionResponseType } from 'discord-interactions';
+import { supabase } from '../lib/supabase.js';
 
 /**
  * Generates a profile card image and sends it as a follow-up message.
  * Returns a deferred response so the initial slash command is acknowledged within 3 seconds.
  */
 export async function profile(interaction: any) {
-  // 1. Acknowledge interaction right away
-  const deferred = { type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE };
+  const userId = interaction.member.user.id;
 
-  // 2. Fire-and-forget webhook to Render for heavy lifting
+  // Check if a cached profile card exists
+  try {
+    const { data: existing } = await supabase
+      .from('profiles')
+      .select('card_url')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (existing?.card_url) {
+      return {
+        type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+        data: { embeds: [{ image: { url: existing.card_url } }] },
+      };
+    }
+  } catch (err) {
+    console.error('[profile] cache lookup error', err);
+  }
+
+  // No cached card – inform user and queue generation
+  const immediateResponse = {
+    type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+    data: {
+      content: '🖼️ Generating your profile card… this may take a minute.',
+      flags: 64, // ephemeral so only the user sees it
+    },
+  };
+
   try {
     const { user } = interaction.member;
     const payload = {
@@ -73,5 +99,5 @@ export async function profile(interaction: any) {
     console.error('[profile] Failed to queue profile hook', err);
   }
 
-  return deferred;
+  return immediateResponse;
 } 
