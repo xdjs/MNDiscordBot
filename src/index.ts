@@ -85,17 +85,9 @@ client.once('ready', async () => {
   try {
     console.log('Refreshing application (/) commands...');
 
-    if (guildId) {
-      // Register commands for a single guild (instantly available, useful for dev)
-      await rest.put(Routes.applicationGuildCommands(clientId!, guildId), {
-        body: commands,
-      });
-      console.log('Successfully registered guild commands.');
-    } else {
-      // Register global commands (may take up to an hour to appear)
-      await rest.put(Routes.applicationCommands(clientId!), { body: commands });
-      console.log('Successfully registered global commands.');
-    }
+    // Register global commands (may take up to an hour to appear)
+    await rest.put(Routes.applicationCommands(clientId!), { body: commands });
+    console.log('Successfully registered global commands.');
   } catch (error) {
     console.error('Failed to register commands:', error);
   }
