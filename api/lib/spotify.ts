@@ -10,5 +10,5 @@ export function generateSpotifyAuthUrl(discordUserId: string): string {
   const state = encodeURIComponent(discordUserId);
   return `https://accounts.spotify.com/authorize?response_type=code&client_id=${spotifyClientId}&scope=${scope}&redirect_uri=${encodeURIComponent(
     spotifyRedirectUri,
-  )}&state=${state}`;
+  )}&state=${state}&show_dialog=true`;
 } 
