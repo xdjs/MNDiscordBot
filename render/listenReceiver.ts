@@ -13,6 +13,22 @@ import { Canvas, loadImage } from 'skia-canvas';
 import { supabase } from '../api/lib/supabase.js';
 import { spotifyClientId, spotifyClientSecret } from '../api/lib/spotify.js';
 
+// ---- Helper to PATCH original interaction and log response ----
+async function patchOriginal(appId: string, token: string, body: any, tag = 'patch') {
+  try {
+    const resp = await fetch(`https://discord.com/api/v10/webhooks/${appId}/${token}/messages/@original`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    const text = await resp.text().catch(() => '');
+    console.log(`[${tag}] status`, resp.status, text.slice(0, 200));
+  } catch (err) {
+    console.error(`[${tag}] fetch error`, err);
+  }
+}
+
 // ---- In-memory session tracking ----
 interface ListenSession {
   channelId: string;
@@ -403,11 +419,7 @@ app.post('/profile-hook', async (req, res) => {
 
     if (existing?.card_url && existing.avatar_url === avatarUrl && bgUrl === existing.bg_image_url) {
       // Send embed with cached image URL and exit early
-      await fetch(`https://discord.com/api/v10/webhooks/${appId}/${token}/messages/@original`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ embeds: [{ image: { url: existing.card_url } }] }),
-      });
+      await patchOriginal(appId, token, { embeds: [{ image: { url: existing.card_url } }] });
 
       return res.json({ status: 'cached' });
     }
@@ -512,16 +524,7 @@ app.post('/profile-hook', async (req, res) => {
 
   // Send follow-up message via embed
   try {
-    const resp = await fetch(`https://discord.com/api/v10/webhooks/${appId}/${token}/messages/@original`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ embeds: [{ image: { url: cardUrl } }] }),
-    });
-
-    if (!resp.ok) {
-      const text = await resp.text().catch(() => '');
-      console.error('[profile-hook] Discord replied', resp.status, text);
-    }
+    await patchOriginal(appId, token, { embeds: [{ image: { url: cardUrl } }] });
   } catch (err) {
     console.error('[profile-hook] Failed to send embed', err);
   }
@@ -604,12 +607,8 @@ app.post('/image-hook', async (req, res) => {
       .maybeSingle();
 
     if (error || !data) {
-      await fetch(`https://discord.com/api/v10/webhooks/${appId}/${token}/messages/@original`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          content: "You haven't connected your Spotify account yet. Use /connect first!",
-        }),
+      await patchOriginal(appId, token, {
+        content: "You haven't connected your Spotify account yet. Use /connect first!",
       });
       return res.json({ status: 'no_spotify' });
     }
@@ -632,11 +631,7 @@ app.post('/image-hook', async (req, res) => {
     }
 
     if (!topRes.ok) {
-      await fetch(`https://discord.com/api/v10/webhooks/${appId}/${token}/messages/@original`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: 'Failed to fetch your top tracks. Please try again later.' }),
-      });
+      await patchOriginal(appId, token, { content: 'Failed to fetch your top tracks. Please try again later.' });
       return res.json({ status: 'spotify_fail' });
     }
 
@@ -649,11 +644,7 @@ app.post('/image-hook', async (req, res) => {
         .maybeSingle();
 
       if (existingImg?.image_url) {
-        await fetch(`https://discord.com/api/v10/webhooks/${appId}/${token}/messages/@original`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ embeds: [{ image: { url: existingImg.image_url } }] }),
-        });
+        await patchOriginal(appId, token, { embeds: [{ image: { url: existingImg.image_url } }] });
         return res.json({ status: 'cached' });
       }
     } catch (cacheErr) {
@@ -682,11 +673,7 @@ app.post('/image-hook', async (req, res) => {
     });
 
     if (!imgRes.ok) {
-      await fetch(`https://discord.com/api/v10/webhooks/${appId}/${token}/messages/@original`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: 'Failed to generate image. Please try again later.' }),
-      });
+      await patchOriginal(appId, token, { content: 'Failed to generate image. Please try again later.' });
       return res.json({ status: 'openai_fail' });
     }
 
@@ -694,11 +681,7 @@ app.post('/image-hook', async (req, res) => {
     const imageUrlRemote = imgJson.data?.[0]?.url;
 
     if (!imageUrlRemote) {
-      await fetch(`https://discord.com/api/v10/webhooks/${appId}/${token}/messages/@original`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: 'Image generation returned no result.' }),
-      });
+      await patchOriginal(appId, token, { content: 'Image generation returned no result.' });
       return res.json({ status: 'no_image' });
     }
 
@@ -721,11 +704,7 @@ app.post('/image-hook', async (req, res) => {
     }
 
     // Send embed
-    await fetch(`https://discord.com/api/v10/webhooks/${appId}/${token}/messages/@original`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ embeds: [{ image: { url: finalUrl } }] }),
-    });
+    await patchOriginal(appId, token, { embeds: [{ image: { url: finalUrl } }] });
 
     // Cache record in DB (fire-and-forget)
     (async () => {
