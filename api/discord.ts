@@ -11,6 +11,7 @@ import { chat } from './commands/chat.js';
 import { profile } from './commands/profile.js';
 import { image as imageCommand } from './commands/image.js';
 import { setimage } from './commands/setimage.js';
+import { disconnect } from './commands/disconnect.js';
 
 const publicKey = process.env.DISCORD_PUBLIC_KEY!;
 
@@ -86,6 +87,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         break;
       case 'setimage':
         response = await setimage(interaction.member.user.id);
+        break;
+      case 'disconnect':
+        response = await disconnect(interaction.member.user.id);
         break;
       default:
         response = {

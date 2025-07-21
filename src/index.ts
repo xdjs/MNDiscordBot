@@ -66,6 +66,7 @@ const commands = [
         .setRequired(false)
     ),
   new SlashCommandBuilder().setName('chat').setDescription('Prompt questions in #bot-chat'),
+  new SlashCommandBuilder().setName('disconnect').setDescription('Unlink your Spotify account'),
   // The /profile command is handled by the Vercel serverless function, not this long-running bot.
   new SlashCommandBuilder().setName('profile').setDescription('Show your profile card'),
 ].map((c) => c.toJSON());
@@ -124,6 +125,8 @@ client.on('interactionCreate', async (interaction: Interaction) => {
     await handleListen(interaction);
   } else if (interaction.commandName === 'chat') {
     await handleChat(interaction);
+  } else if (interaction.commandName === 'disconnect') {
+    await handleDisconnect(interaction);
   }
   // profile command is handled elsewhere
 });
@@ -453,3 +456,46 @@ app.get('/spotify/callback', async (req: Request, res: Response) => {
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
 app.listen(PORT, () => console.log(`OAuth callback server listening on port ${PORT}`));
+
+async function handleDisconnect(interaction: ChatInputCommandInteraction) {
+  const discordUserId = interaction.user.id;
+
+  const { data, error } = await supabase
+    .from('spotify_tokens')
+    .select('user_id')
+    .eq('user_id', discordUserId)
+    .maybeSingle();
+
+  if (error) {
+    console.error('Supabase lookup error', error);
+    await interaction.reply({
+      content: 'Sorry, something went wrong while looking up your account.',
+      ephemeral: true,
+    });
+    return;
+  }
+
+  if (!data) {
+    await interaction.reply({
+      content: "You haven't connected your Spotify account yet.",
+      ephemeral: true,
+    });
+    return;
+  }
+
+  const { error: delError } = await supabase.from('spotify_tokens').delete().eq('user_id', discordUserId);
+
+  if (delError) {
+    console.error('Supabase delete error', delError);
+    await interaction.reply({
+      content: 'Failed to disconnect your Spotify account. Please try again later.',
+      ephemeral: true,
+    });
+    return;
+  }
+
+  await interaction.reply({
+    content: '🗑️ Your Spotify account has been disconnected.',
+    ephemeral: true,
+  });
+}
