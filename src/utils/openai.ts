@@ -28,7 +28,8 @@ export async function getFunFact(artist: string, track?: string): Promise<string
   }
 
   const basePrompt = track
-    ? `Give me a true, lesser-known fun fact about the song "${track}" by ${artist}. `
+    ? `Give me a true, lesser-known fun fact about the song "${track}" OR its credited artist(s) (${artist})
+    (If you cannot find anything about the song, then share a fun fact about the credited artist(s)). `
     : `Give me a true, lesser-known fun fact about the artist ${artist}. `;
 
   const prompt =
@@ -62,7 +63,7 @@ export async function getFunFact(artist: string, track?: string): Promise<string
   // If missing context, append footer encouraging DB addition
   if (!hasContext) {
     const baseUrl = process.env.BASE_URL || 'https://your-site.com/add-artist';
-    const link = links ? `${baseUrl}/${links.id}` : baseUrl;
+    const link = links ? `${baseUrl}/artist/${links.id}` : baseUrl;
     fact += `\n\n*Our DB doesn’t yet include this artist or doesn't have enough information — adding them helps reduce hallucinations:* ${link}`;
   }
 
