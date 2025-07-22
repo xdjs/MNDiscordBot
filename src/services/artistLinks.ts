@@ -1,11 +1,12 @@
-import { createClient } from '@supabase/supabase-js';
+import { Pool } from 'pg';
 
-// Alternate Supabase instance that hosts the artists table
-const ALT_URL = process.env.SUPABASE_ALT_URL!;
-const ALT_KEY = process.env.SUPABASE_ALT_KEY ?? '';
+// Use direct Postgres connection (no anon key required)
+const ALT_PG_URL = process.env.SUPABASE_ALT_URL!; // expects postgres:// URL
 
-export const altSupabase = createClient(ALT_URL, ALT_KEY, {
-  auth: { persistSession: false },
+// Supabase Postgres endpoints require SSL
+export const altPool = new Pool({
+  connectionString: ALT_PG_URL,
+  ssl: { rejectUnauthorized: false },
 });
 
 export interface ArtistLinks {
@@ -21,12 +22,13 @@ export interface ArtistLinks {
  * Returns null if no row found.
  */
 export async function fetchArtistLinksByName(name: string): Promise<ArtistLinks | null> {
-  const { data } = await altSupabase
-    .from('artists')
-    .select('id, youtube, tiktok, x, instagram')
-    .ilike('name', name) // simple ILIKE; adjust if you have aliases
-    .limit(1)
-    .maybeSingle();
+  const { rows } = await altPool.query<ArtistLinks>(
+    `SELECT id, youtube, tiktok, x, instagram
+     FROM artists
+     WHERE LOWER(name) = LOWER($1)
+     LIMIT 1`,
+    [name],
+  );
 
-  return (data ?? null) as ArtistLinks | null;
+  return rows.length ? rows[0] : null;
 } 
