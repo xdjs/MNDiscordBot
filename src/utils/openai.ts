@@ -63,8 +63,21 @@ export async function getFunFact(artist: string, track?: string): Promise<string
   // If missing context, append footer encouraging DB addition
   if (!hasContext) {
     const baseUrl = process.env.BASE_URL || 'https://your-site.com/add-artist';
-    const link = links ? `${baseUrl}/artist/${links.id}` : baseUrl;
-    fact += `\n\n*Our DB doesn’t yet include this artist or doesn't have enough information — adding them helps reduce hallucinations:* ${link}`;
+
+    let footerMsg: string;
+    let link: string;
+
+    if (!links) {
+      // Artist not in DB at all
+      link = baseUrl;
+      footerMsg = 'Our DB doesn’t yet include this artist — adding them helps reduce hallucinations:';
+    } else {
+      // Artist exists but lacks social information
+      link = `${baseUrl}/artist/${links.id}`;
+      footerMsg = "Our DB doesn't have enough information — adding more helps reduce hallucinations:";
+    }
+
+    fact += `\n\n*${footerMsg}* ${link}`;
   }
 
   return fact;
