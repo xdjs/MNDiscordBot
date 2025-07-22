@@ -127,12 +127,20 @@ function scheduleChatTimeout(channelId: string) {
 // ---- OpenAI helper ----
 const { OPENAI_API_KEY } = process.env;
 
-async function getFunFact(artist: string): Promise<string> {
+async function getFunFact(artist: string, track?: string): Promise<string> {
   if (!OPENAI_API_KEY) return `${artist} is cool!`;
 
-  const prompt = `Give me a true, lesser-known, and fun fact about artists/band/ or group: ${artist} (under 150 characters).
-   Include the source or context (like an interview, social media post, or official profile) where this fact is mentioned.
-   Do not make up any facts or produce any false information.`;
+  let prompt: string;
+  if (track) {
+    prompt = `Give me a true, lesser-known, behind-the-scenes fun fact about the song "${track}" by ${artist} ` +
+      `(this may include anime openings/endings or songs in any language). ` +
+      `OR share a fun fact about the credited artist(s). ` +
+      `Limit to 150 characters and mention the source or context in parentheses. ` +
+      `Do NOT fabricate information.`;
+  } else {
+    prompt = `Give me a true, lesser-known, behind-the-scenes fun fact about the artist(s)/band/group: ${artist}. ` +
+      `Keep it under 150 characters, reference the source in parentheses, and do NOT invent facts.`;
+  }
 
   try {
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -316,12 +324,13 @@ app.post('/listen-hook', async (req, res) => {
     if (artistText) {
       artistText = artistText
         .split(/[;,]/)
-        .map((a) => a.trim())
+        .map((s) => s.trim())
         .filter(Boolean)
         .join(', ');
     }
     if (!artistText) artistText = 'Unknown artist';
-    const fact = await getFunFact(artistText);
+    const trackTitle = spotifyAct?.details || undefined;
+    const fact = await getFunFact(artistText as string, trackTitle);
 
     await rest.post(Routes.channelMessages(channelId), {
       body: {
@@ -760,7 +769,7 @@ client.on('presenceUpdate', async (oldPresence, newPresence) => {
   const artistText =
     artistTextRaw
       .split(/[;,]/)
-      .map((a) => a.trim())
+      .map((s) => s.trim())
       .filter(Boolean)
       .join(', ') ||
     'Unknown artist';
@@ -769,7 +778,8 @@ client.on('presenceUpdate', async (oldPresence, newPresence) => {
   session.lastTrackId = trackIdentifier;
   session.factCount += 1;
 
-  const fact = await getFunFact(artistText);
+  const trackTitle = spotifyAct.details || undefined;
+  const fact = await getFunFact(artistText as string, trackTitle);
 
   try {
     await rest.post(Routes.channelMessages(session.channelId), {
@@ -781,7 +791,7 @@ client.on('presenceUpdate', async (oldPresence, newPresence) => {
     console.error('Failed to post fun fact', err);
   }
 
-  if (session.factCount >= 3) {
+  if (session.factCount >= 10) {
     if (session.timeout) clearTimeout(session.timeout);
     sessions.delete(userId);
   }
