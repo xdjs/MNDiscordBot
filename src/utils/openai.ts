@@ -28,7 +28,8 @@ export async function getFunFact(artist: string, track?: string): Promise<string
   }
 
   const basePrompt = track
-    ? `Give me a true, lesser-known fun fact about the song "${track}" by ${artist}. `
+    ? `Give me a true, lesser-known fun fact about the song "${track}" OR its credited artist(s) (${artist})
+    (If you cannot find anything about the song, then share a fun fact about the credited artist(s)). `
     : `Give me a true, lesser-known fun fact about the artist ${artist}. `;
 
   const prompt =
