@@ -38,7 +38,7 @@ if (!spotifyClientId || !spotifyClientSecret) {
 function generateSpotifyAuthUrl(discordUserId: string): string {
   const scope = encodeURIComponent('user-read-private user-read-email user-top-read');
   const state = encodeURIComponent(discordUserId); // minimal – you can sign/encode this further if desired
-  return `https://accounts.spotify.com/authorize?response_type=code&client_id=${spotifyClientId}&scope=${scope}&redirect_uri=${encodeURIComponent(spotifyRedirectUri)}&state=${state}`;
+  return `https://accounts.spotify.com/authorize?response_type=code&client_id=${spotifyClientId}&scope=${scope}&redirect_uri=${encodeURIComponent(spotifyRedirectUri)}&state=${state}&show_dialog=true`;
 }
 
 if (!token || !clientId) {
@@ -423,13 +423,17 @@ app.get('/spotify/callback', async (req: Request, res: Response) => {
       return res.status(500).send('Failed to exchange token');
     }
 
-    await supabase.from('spotify_tokens').upsert({
+    const upsertData: Record<string, any> = {
       user_id: state,
       access_token: tokenJson.access_token,
-      refresh_token: tokenJson.refresh_token,
       updated_at: new Date().toISOString(),
-      // keep created_at default, time_range and track_limit unchanged/null
-    });
+    };
+
+    if (tokenJson.refresh_token) {
+      upsertData.refresh_token = tokenJson.refresh_token;
+    }
+
+    await supabase.from('spotify_tokens').upsert(upsertData);
 
     // Notify user in Discord
     try {
