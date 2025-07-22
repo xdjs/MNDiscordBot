@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import { fetchArtistLinksByName } from '../services/artistLinks.js';
 
 export interface SongContext {
   track: string;
@@ -7,22 +8,35 @@ export interface SongContext {
 
 const { OPENAI_API_KEY } = process.env;
 
-// Fun fact based on artist and optional track title
+// Fun fact based on artist and optional track title, enriched with DB social links.
 export async function getFunFact(artist: string, track?: string): Promise<string> {
   if (!OPENAI_API_KEY) return `${artist} is cool!`;
 
-  let prompt: string;
-  if (track) {
-    prompt = `Give me a true, lesser-known, behind-the-scenes fun fact about the song "${track}" by ${artist} ` +
-      `(this may include songs in any language, if you cannot find anything then share a fun fact about the credited artist(s)). ` +
-      `OR share a fun fact about the credited artist(s). ` +
-      `Limit to 150 characters and mention the source or context in parentheses. ` +
-      `Do NOT fabricate information.`;
-  } else {
-    prompt = `Give me a true, lesser-known, behind-the-scenes fun fact about the artist(s)/band/group: ${artist}. ` +
-      `Keep it under 150 characters, reference the source in parentheses, and do NOT invent facts.`;
+  // Pull social links from our artists DB
+  const links = await fetchArtistLinksByName(artist);
+  const socialFields = links ? (({ youtube, tiktok, x, instagram }) => ({ youtube, tiktok, x, instagram }))(links) : null;
+  const hasContext = socialFields && Object.values(socialFields).some((v) => v && v.toString().trim().length > 0);
+
+  let socialCtx = '';
+  if (hasContext && links) {
+    const parts = Object.entries(socialFields!)
+      .filter(([_, url]) => url)
+      .map(([platform, url]) => `${platform}: ${url}`);
+    if (parts.length) {
+      socialCtx = `Verified social links:\n${parts.join('\n')}\n\n`;
+    }
   }
 
+  const basePrompt = track
+    ? `Give me a true, lesser-known fun fact about the song "${track}" by ${artist}. `
+    : `Give me a true, lesser-known fun fact about the artist ${artist}. `;
+
+  const prompt =
+    socialCtx +
+    basePrompt +
+    'Limit to 150 characters and cite the source or context in parentheses. Do NOT fabricate information.';
+
+  let fact: string;
   try {
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -33,18 +47,26 @@ export async function getFunFact(artist: string, track?: string): Promise<string
       body: JSON.stringify({
         model: 'gpt-4o',
         messages: [{ role: 'user', content: prompt }],
-        max_tokens: 50,
+        max_tokens: 60,
         temperature: 0.7,
       }),
     });
 
     const json = (await res.json()) as any;
-    const fact = json.choices?.[0]?.message?.content?.trim();
-    return fact || `${artist} is cool!`;
+    fact = json.choices?.[0]?.message?.content?.trim() || `${artist} is cool!`;
   } catch (err) {
     console.error('OpenAI error', err);
-    return `${artist} is cool!`;
+    fact = `${artist} is cool!`;
   }
+
+  // If missing context, append footer encouraging DB addition
+  if (!hasContext) {
+    const baseUrl = process.env.BASE_URL || 'https://your-site.com/add-artist';
+    const link = links ? `${baseUrl}/${links.id}` : baseUrl;
+    fact += `\n\n*Our DB doesn’t yet include this artist or doesn't have enough information — adding them helps reduce hallucinations:* ${link}`;
+  }
+
+  return fact;
 }
 
 // Fun fact helper for music bot "now playing" lines
