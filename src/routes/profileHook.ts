@@ -100,10 +100,10 @@ export function registerProfileHook(app: Express) {
       roundRect(ctx, 0, 0, width, height, 18);
     }
 
-    // Avatar drawing
+    // Avatar drawing (bottom-left)
     const avatarSize = 116;
     const avatarX = 22;
-    const avatarY = (height - avatarSize) / 2;
+    const avatarY = height - avatarSize - 22; // 22px bottom margin
     try {
       const img = await loadImage(avatarUrl);
       ctx.save();
@@ -124,11 +124,12 @@ export function registerProfileHook(app: Express) {
     ctx.arc(avatarX + avatarSize - dotR, avatarY + avatarSize - dotR, dotR, 0, Math.PI * 2);
     ctx.fill();
 
-    // Username text
+    // Username text aligned to bottom
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 42px Sans';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(username ?? 'Unknown', avatarX + avatarSize + 30, height / 2);
+    ctx.textBaseline = 'bottom';
+    const textY = height - 22; // 22px bottom padding to match avatar
+    ctx.fillText(username ?? 'Unknown', avatarX + avatarSize + 30, textY);
 
     const buffer: Buffer = await (canvas as any).png;
 
