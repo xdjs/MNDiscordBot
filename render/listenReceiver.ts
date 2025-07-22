@@ -138,7 +138,7 @@ async function getFunFact(artist: string, track?: string): Promise<string> {
       `Limit to 150 characters and mention the source or context in parentheses. ` +
       `Do NOT fabricate information.`;
   } else {
-    prompt = `Give me a true, lesser-known, behind-the-scenes fun fact about the artist(s)/band: ${artist}. ` +
+    prompt = `Give me a true, lesser-known, behind-the-scenes fun fact about the artist(s)/band/group: ${artist}. ` +
       `Keep it under 150 characters, reference the source in parentheses, and do NOT invent facts.`;
   }
 
