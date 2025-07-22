@@ -11,10 +11,10 @@ if (!token || !clientId) {
 
 // Define the slash-command payloads for this version of the bot
 const commands = [
-  new SlashCommandBuilder().setName('hi').setDescription('Say hi!'),
-  new SlashCommandBuilder().setName('connect').setDescription('Link your Spotify account'),
-  new SlashCommandBuilder().setName('disconnect').setDescription('Unlink your Spotify account'),
-  new SlashCommandBuilder().setName('tracks').setDescription('Get your top 10 Spotify tracks'),
+  new SlashCommandBuilder().setName('hi').setDescription('Say hi!').setDMPermission(true),
+  new SlashCommandBuilder().setName('connect').setDescription('Link your Spotify account').setDMPermission(true),
+  new SlashCommandBuilder().setName('disconnect').setDescription('Unlink your Spotify account').setDMPermission(true),
+  new SlashCommandBuilder().setName('tracks').setDescription('Get your top 10 Spotify tracks').setDMPermission(true),
   new SlashCommandBuilder()
     .setName('listen')
     .setDescription('Start a listening session')
@@ -24,11 +24,11 @@ const commands = [
         .setDescription('The user whose Spotify status to listen to (defaults to yourself)')
         .setRequired(false)
     ),
-  new SlashCommandBuilder().setName('help').setDescription('Show help information'),
-  new SlashCommandBuilder().setName('chat').setDescription('Prompt questions in #bot-chat'),
-  new SlashCommandBuilder().setName('profile').setDescription('Show your profile card'),
-  new SlashCommandBuilder().setName('image').setDescription('Generate art based on your top 10 Spotify tracks'),
-  new SlashCommandBuilder().setName('setimage').setDescription('Use your generated image as profile background'),
+  new SlashCommandBuilder().setName('help').setDescription('Show help information').setDMPermission(true),
+  new SlashCommandBuilder().setName('chat').setDescription('Prompt questions in #bot-chat').setDMPermission(false),
+  new SlashCommandBuilder().setName('profile').setDescription('Show your profile card').setDMPermission(true),
+  new SlashCommandBuilder().setName('image').setDescription('Generate art based on your top 10 Spotify tracks').setDMPermission(true),
+  new SlashCommandBuilder().setName('setimage').setDescription('Use your generated image as profile background').setDMPermission(true),
 ].map((c) => c.toJSON());
 
 // Utility to strip Discord-generated fields so we can compare command definitions
