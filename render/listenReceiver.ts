@@ -314,11 +314,7 @@ app.post('/listen-hook', async (req, res) => {
 
     console.log('artistText extracted:', artistText);
     if (artistText) {
-      artistText = artistText
-        .split(/[;,]/)
-        .map((a) => a.trim())
-        .filter(Boolean)
-        .join(', ');
+      artistText = artistText.split(/[;,]/)[0].trim();
     }
     if (!artistText) artistText = 'Unknown artist';
     const fact = await getFunFact(artistText);
@@ -757,13 +753,7 @@ client.on('presenceUpdate', async (oldPresence, newPresence) => {
 
   // New song detected
   const artistTextRaw = spotifyAct.state || spotifyAct.assets?.largeText?.split(' – ')[0] || '';
-  const artistText =
-    artistTextRaw
-      .split(/[;,]/)
-      .map((a) => a.trim())
-      .filter(Boolean)
-      .join(', ') ||
-    'Unknown artist';
+  const artistText = artistTextRaw.split(/[;,]/)[0].trim() || 'Unknown artist';
 
   // Update session state
   session.lastTrackId = trackIdentifier;
