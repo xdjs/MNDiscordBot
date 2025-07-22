@@ -132,13 +132,14 @@ async function getFunFact(artist: string, track?: string): Promise<string> {
 
   let prompt: string;
   if (track) {
-    prompt = `Give me a true, lesser-known, and fun fact about either the song "${track}" by ${artist} **or** the credited artist(s) themselves (under 150 characters). ` +
-      `Include the source or context (like an interview, social media post, or official profile) where this fact is mentioned. ` +
-      `Do not make up any facts or produce any false information.`;
+    prompt = `Give me a true, lesser-known, behind-the-scenes fun fact about the song "${track}" by ${artist} ` +
+      `(this may include anime openings/endings or songs in any language). ` +
+      `OR share a fun fact about the credited artist(s). ` +
+      `Limit to 150 characters and mention the source or context in parentheses. ` +
+      `Do NOT fabricate information.`;
   } else {
-    prompt = `Give me a true, lesser-known, and fun fact about artists/band/group: ${artist} (under 150 characters). ` +
-      `Include the source or context (like an interview, social media post, or official profile) where this fact is mentioned. ` +
-      `Do not make up any facts or produce any false information.`;
+    prompt = `Give me a true, lesser-known, behind-the-scenes fun fact about the artist(s)/band: ${artist}. ` +
+      `Keep it under 150 characters, reference the source in parentheses, and do NOT invent facts.`;
   }
 
   try {
