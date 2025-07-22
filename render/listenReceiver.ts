@@ -781,7 +781,7 @@ client.on('presenceUpdate', async (oldPresence, newPresence) => {
     console.error('Failed to post fun fact', err);
   }
 
-  if (session.factCount >= 3) {
+  if (session.factCount >= 10) {
     if (session.timeout) clearTimeout(session.timeout);
     sessions.delete(userId);
   }
