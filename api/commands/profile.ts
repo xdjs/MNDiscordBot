@@ -6,7 +6,8 @@ import { supabase } from '../lib/supabase.js';
  * Returns a deferred response so the initial slash command is acknowledged within 3 seconds.
  */
 export async function profile(interaction: any) {
-  const userId = interaction.member.user.id;
+  const userObj = interaction.member?.user ?? interaction.user;
+  const userId = userObj.id;
 
   // Check if a cached profile card exists
   try {
@@ -36,7 +37,7 @@ export async function profile(interaction: any) {
   };
 
   try {
-    const { user } = interaction.member;
+    const user = userObj;
     const payload = {
       user_id: user.id,
       username: user.username,
