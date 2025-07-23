@@ -7,6 +7,8 @@ const ALT_PG_URL = process.env.SUPABASE_ALT_URL!; // expects postgres:// URL
 export const altPool = new Pool({
   connectionString: ALT_PG_URL,
   ssl: { rejectUnauthorized: false },
+  max: 3,
+  idleTimeoutMillis: 1_000,
 });
 
 export interface ArtistLinks {
@@ -17,18 +19,31 @@ export interface ArtistLinks {
   instagram?: string | null;
 }
 
+export interface ArtistLinksSkipped {
+  skip: true;
+}
+
 /**
  * Fetch social-media links for an artist by case-insensitive name match.
  * Returns null if no row found.
  */
 export async function fetchArtistLinksByName(name: string): Promise<ArtistLinks | null> {
-  const { rows } = await altPool.query<ArtistLinks>(
-    `SELECT id, youtube, tiktok, x, instagram
-     FROM artists
-     WHERE LOWER(name) = LOWER($1)
-     LIMIT 1`,
-    [name],
-  );
+  try {
+    const { rows } = await altPool.query<ArtistLinks>(
+      `SELECT id, youtube, tiktok, x, instagram
+       FROM artists
+       WHERE name = $1 OR $1 = ANY(aliases)
+       LIMIT 1`,
+      [name],
+    );
 
-  return rows.length ? rows[0] : null;
+    return rows.length ? rows[0] : null;
+  } catch (err: any) {
+    // If pool cannot obtain a connection (max connections), fall back gracefully
+    if (err?.message?.includes('Max client connections')) {
+      console.warn('[artistLinks] pool limit reached – skipping DB lookup');
+      return { skip: true } as any;
+    }
+    throw err; // rethrow unexpected errors
+  }
 } 

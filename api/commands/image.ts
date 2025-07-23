@@ -7,7 +7,8 @@ import { supabase } from '../lib/supabase.js';
  * The heavy lifting happens in the Render service (see /image-hook).
  */
 export async function image(interaction: any) {
-  const userId = interaction.member.user.id;
+  const userObj = interaction.member?.user ?? interaction.user;
+  const userId = userObj.id;
 
   // 1. Check for cached image
   try {
@@ -38,7 +39,7 @@ export async function image(interaction: any) {
 
   // 3. Fire-and-forget webhook to Render for image generation
   try {
-    const { user } = interaction.member;
+    const user = userObj;
     const payload = {
       user_id: user.id,
       application_id: interaction.application_id,

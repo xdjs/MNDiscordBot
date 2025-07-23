@@ -72,7 +72,17 @@ export async function listen(
 
   // Persist preference if user explicitly provided the flag
   if (dmFlag !== undefined) {
-    await supabase.from('profiles').upsert({ user_id: invokerId, listen_dm: dmFlag });
+    await supabase
+      .from('profiles')
+      .upsert(
+        {
+          user_id: invokerId,
+          listen_dm: dmFlag,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'user_id' },
+      )
+      .throwOnError();
   }
 
   let destChannelId = channelId;
