@@ -72,17 +72,39 @@ export async function listen(
 
   // Persist preference if user explicitly provided the flag
   if (dmFlag !== undefined) {
-    await supabase
+    const { data: existing } = await supabase
       .from('profiles')
-      .upsert(
-        {
+      .select('user_id')
+      .eq('user_id', invokerId)
+      .maybeSingle();
+
+    if (existing) {
+      // Update only the preference column to avoid NOT-NULL violations
+      await supabase
+        .from('profiles')
+        .update({ listen_dm: dmFlag, updated_at: new Date().toISOString() })
+        .eq('user_id', invokerId)
+        .throwOnError();
+    } else {
+      // Insert a fresh profile row with required fields
+      const userRes = await fetch(`https://discord.com/api/v10/users/${invokerId}`, {
+        headers: { Authorization: `Bot ${BOT_TOKEN}` },
+      });
+      const userObj = (await userRes.json()) as { username?: string; avatar?: string };
+
+      await supabase
+        .from('profiles')
+        .insert({
           user_id: invokerId,
+          username: userObj.username ?? 'Unknown',
+          avatar_url: userObj.avatar
+            ? `https://cdn.discordapp.com/avatars/${invokerId}/${userObj.avatar}.png`
+            : null,
           listen_dm: dmFlag,
           updated_at: new Date().toISOString(),
-        },
-        { onConflict: 'user_id' },
-      )
-      .throwOnError();
+        })
+        .throwOnError();
+    }
   }
 
   let destChannelId = channelId;
