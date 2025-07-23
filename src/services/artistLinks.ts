@@ -13,9 +13,9 @@ export const altPool = new Pool({
 
 export interface ArtistLinks {
   id: string;
-  spotify?: string | null;
   youtube?: string | null;
-  
+  x?: string | null;
+  soundcloud?: string | null;
   instagram?: string | null;
 }
 
