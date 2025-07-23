@@ -64,7 +64,7 @@ export async function getFunFact(artist: string, track?: string): Promise<string
   const prompt =
     socialCtx +
     basePrompt +
-    'Start your answer with the single tag [n] indicating which artist you are referring to. ' +
+    'Start your answer with the numeric tag for the chosen artist, e.g. [1]. ' +
     'Limit to 150 characters and cite the source or context in parentheses. Do NOT fabricate facts.';
 
   let fact: string;
@@ -92,7 +92,7 @@ export async function getFunFact(artist: string, track?: string): Promise<string
 
   // Parse leading tag
   let footer = '';
-  const tagMatch = /^\s*\[(\d+)]\s*/.exec(fact);
+  const tagMatch = /^\s*\[(\d+)]/.exec(fact);
   if (tagMatch) {
     const idx = Number(tagMatch[1]) - 1;
     fact = fact.replace(tagMatch[0], '');
@@ -104,6 +104,12 @@ export async function getFunFact(artist: string, track?: string): Promise<string
     } else if (!rowPicked.spotify) {
       const baseUrl = process.env.BASE_URL || 'https://your-site.com/add-artist';
       footer = `\n\n*Our DB doesn't have enough information about this artist — adding more helps reduce hallucinations:* ${baseUrl}/artist/${rowPicked.id}`;
+    }
+  } else {
+    // No tag parsed – fall back footer logic
+    if (!hasContext) {
+      const baseUrl = process.env.BASE_URL || 'https://your-site.com/add-artist';
+      footer = `\n\n*Our DB doesn’t yet include this artist — adding them helps reduce hallucinations:* ${baseUrl}`;
     }
   }
 
