@@ -48,6 +48,42 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       updated_at: new Date().toISOString(),
     });
 
+    // Ensure a profiles row exists
+    const { data: prof } = await supabase
+      .from('profiles')
+      .select('user_id')
+      .eq('user_id', state)
+      .maybeSingle();
+
+    if (!prof) {
+      // Fetch basic user data from Discord to satisfy NOT NULL username column
+      const BOT_TOKEN = process.env.DISCORD_BOT_TOKEN;
+      let username: string | null = null;
+      let avatar: string | null = null;
+      if (BOT_TOKEN) {
+        try {
+          const uRes = await fetch(`https://discord.com/api/v10/users/${state}`, {
+            headers: { Authorization: `Bot ${BOT_TOKEN}` },
+          });
+          if (uRes.ok) {
+            const uj = await uRes.json();
+            username = uj.username ?? null;
+            avatar = uj.avatar ?? null;
+          }
+        } catch {/* ignore */}
+      }
+
+      await supabase
+        .from('profiles')
+        .insert({
+          user_id: state,
+          username: username ?? 'Unknown',
+          avatar_url: avatar ? `https://cdn.discordapp.com/avatars/${state}/${avatar}.png` : null,
+          updated_at: new Date().toISOString(),
+        })
+        .throwOnError();
+    }
+
     // Simple success page
     return res.send(
       '<html><body style="font-family:sans-serif;text-align:center;padding-top:40px">✅ Spotify linked! You can close this tab.<script>window.close()</script></body></html>',
