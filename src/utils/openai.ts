@@ -115,13 +115,13 @@ export async function getFunFact(artist: string, track?: string): Promise<string
     if (!rowPicked || rowPicked.skip) {
       // pool skip or no row
       const baseUrl = process.env.BASE_URL || 'https://your-site.com/add-artist';
-      footer = `\n\n*Our DB doesn’t yet include this artist — adding them helps reduce hallucinations:* ${baseUrl}`;
+      footer = `\n\n*Our DB doesn’t yet include this artist — adding them helps reduce hallucinations:* ${baseUrl}\n`;
     } else {
       const r:any = rowPicked;
       const hasAny = r.youtube || r.tiktok || r.x || r.instagram;
       if (!hasAny) {
         const baseUrl = process.env.BASE_URL || 'https://your-site.com/add-artist';
-        footer = `\n\n*Our DB doesn't have enough information about this artist — adding more helps reduce hallucinations:* ${baseUrl}/artist/${r.id}`;
+        footer = `\n\n*Our DB doesn't have enough information about this artist — adding more helps reduce hallucinations:* ${baseUrl}/artist/${r.id}\n`;
       }
     }
   } else {

@@ -88,23 +88,39 @@ export function registerImageHook(app: Express) {
         return res.json({ status: 'spotify_fail' });
       }
 
-      // --- Check cache ---
+      // Parse the current top-tracks list so we can compare with any previously-cached version
+      const json = await topRes.json();
+      const trackIds: string[] = (json.items ?? []).map((t: any) => t.id);
+
+      // --- Check cache (reuse only if <4 tracks differ) ---
       try {
         const { data: existingImg } = await supabase
           .from('track_images')
-          .select('image_url')
+          .select('image_url, track_ids')
           .eq('user_id', userId)
           .maybeSingle();
 
-        if (existingImg?.image_url) {
-          await patchOriginal(appId!, token!, { embeds: [{ image: { url: existingImg.image_url } }] });
-          return res.json({ status: 'cached' });
+        if (existingImg?.image_url && Array.isArray(existingImg.track_ids)) {
+          const prevIds: string[] = existingImg.track_ids as any;
+
+          // Symmetric difference between old and new sets
+          const diffCount = new Set([
+            ...trackIds.filter((id) => !prevIds.includes(id)),
+            ...prevIds.filter((id) => !trackIds.includes(id)),
+          ]).size;
+
+          if (diffCount < 4) {
+            // Fewer than 4 changes → reuse cached image
+            await patchOriginal(appId!, token!, { embeds: [{ image: { url: existingImg.image_url } }] });
+            return res.json({ status: 'cached' });
+          }
         }
       } catch (cacheErr) {
         console.error('[image-hook] cache lookup error', cacheErr);
       }
 
-      const json = await topRes.json();
+      // fall through to image generation when ≥4 tracks changed or no cache exists
+
       const tracksArray: string[] = json.items.map(
         (t: any, i: number) => `${i + 1}. ${t.name} – ${t.artists.map((a: any) => a.name).join(', ')}`,
       );
@@ -166,6 +182,7 @@ export function registerImageHook(app: Express) {
           await supabase.from('track_images').upsert({
             user_id: userId,
             image_url: finalUrl,
+            track_ids: trackIds,
             updated_at: new Date().toISOString(),
           });
         } catch (err) {
