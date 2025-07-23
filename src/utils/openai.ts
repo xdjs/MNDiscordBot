@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { fetchArtistLinksByName } from '../services/artistLinks.js';
+import { fetchArtistLinksByName, ArtistLinks } from '../services/artistLinks.js';
 
 async function generateGenericFactPrompt(artist: string, track?: string): Promise<string> {
   const base = track
@@ -33,25 +33,27 @@ const { OPENAI_API_KEY } = process.env;
 export async function getFunFact(artist: string, track?: string): Promise<string> {
   if (!OPENAI_API_KEY) return `${artist} is cool!`;
 
-  // Pull social links from our artists DB
-  const linksRaw = await fetchArtistLinksByName(artist);
-  if ((linksRaw as any)?.skip) {
-    // pool busy; generate generic fact without footer
-    return await generateGenericFactPrompt(artist, track);
-  }
-  const links = linksRaw as any;
-  const socialFields = links ? (({ youtube, tiktok, x, instagram }) => ({ youtube, tiktok, x, instagram }))(links) : null;
-  const hasContext = socialFields && Object.values(socialFields).some((v) => v && v.toString().trim().length > 0);
+  // handle multiple artist names separated by commas or &
+  const artistNames = artist.split(/[,&]/).map(s => s.trim()).filter(Boolean);
 
-  let socialCtx = '';
-  if (hasContext && links) {
-    const parts = Object.entries(socialFields!)
-      .filter(([_, url]) => url)
-      .map(([platform, url]) => `${platform}: ${url}`);
-    if (parts.length) {
-      socialCtx = `Verified social links:\n${parts.join('\n')}\n\n`;
+  const lookups: (ArtistLinks | null | { skip: true })[] = [];
+  const contextParts: string[] = [];
+
+  for (const aName of artistNames) {
+    const row = await fetchArtistLinksByName(aName);
+    lookups.push(row as any);
+    if ((row as any)?.skip) continue; // skip when pool busy
+    if (row && row.spotify) {
+      contextParts.push(`- ${aName}: https://open.spotify.com/artist/${row.spotify}`);
+    } else {
+      contextParts.push(`- ${aName}: not found`);
     }
   }
+
+  const hasContext = contextParts.some((p) => !p.endsWith('not found'));
+
+  let socialCtx = '';
+  socialCtx = `Spotify profiles for the credited artist(s):\n${contextParts.map((p,i)=>`[${i+1}] ${p}`).join('\n')}\n\n`;
 
   const basePrompt = track
     ? `Give me a true, lesser-known fun fact about the song "${track}" OR its credited artist(s) (${artist})
@@ -62,7 +64,8 @@ export async function getFunFact(artist: string, track?: string): Promise<string
   const prompt =
     socialCtx +
     basePrompt +
-    'Limit to 150 characters and cite the source or context in parentheses. Do NOT fabricate information.';
+    'Start your answer with the single tag [n] indicating which artist you are referring to. ' +
+    'Limit to 150 characters and cite the source or context in parentheses. Do NOT fabricate facts.';
 
   let fact: string;
   try {
@@ -87,27 +90,24 @@ export async function getFunFact(artist: string, track?: string): Promise<string
     fact = `${artist} is cool!`;
   }
 
-  // If missing context, append footer encouraging DB addition
-  if (!hasContext) {
-    const baseUrl = process.env.BASE_URL || 'https://your-site.com/add-artist';
-
-    let footerMsg: string;
-    let link: string;
-
-    if (!links) {
-      // Artist not in DB at all
-      link = baseUrl;
-      footerMsg = 'Our DB doesn’t yet include this artist — adding them helps reduce hallucinations:';
-    } else {
-      // Artist exists but lacks social information
-      link = `${baseUrl}/artist/${links.id}`;
-      footerMsg = "Our DB doesn't have enough information — adding more helps reduce hallucinations:";
+  // Parse leading tag
+  let footer = '';
+  const tagMatch = /^\s*\[(\d+)]\s*/.exec(fact);
+  if (tagMatch) {
+    const idx = Number(tagMatch[1]) - 1;
+    fact = fact.replace(tagMatch[0], '');
+    const rowPicked = lookups[idx] as any;
+    if (!rowPicked || rowPicked.skip) {
+      // pool skip or no row
+      const baseUrl = process.env.BASE_URL || 'https://your-site.com/add-artist';
+      footer = `\n\n*Our DB doesn’t yet include this artist — adding them helps reduce hallucinations:* ${baseUrl}`;
+    } else if (!rowPicked.spotify) {
+      const baseUrl = process.env.BASE_URL || 'https://your-site.com/add-artist';
+      footer = `\n\n*Our DB doesn't have enough information about this artist — adding more helps reduce hallucinations:* ${baseUrl}/artist/${rowPicked.id}`;
     }
-
-    fact += `\n\n*${footerMsg}* ${link}`;
   }
 
-  return fact;
+  return fact + footer;
 }
 
 // Fun fact helper for music bot "now playing" lines
