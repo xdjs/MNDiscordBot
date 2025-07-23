@@ -23,6 +23,12 @@ const commands = [
         .setName('user')
         .setDescription('The user whose Spotify status to listen to (defaults to yourself)')
         .setRequired(false)
+    )
+    .addBooleanOption((opt) =>
+      opt
+        .setName('dm')
+        .setDescription('Send fun facts to your DMs (true) or this channel (false)')
+        .setRequired(false)
     ),
   new SlashCommandBuilder().setName('help').setDescription('Show help information').setDMPermission(true),
   new SlashCommandBuilder().setName('chat').setDescription('Prompt questions in #bot-chat').setDMPermission(false),
