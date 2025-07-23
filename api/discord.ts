@@ -45,19 +45,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (interaction.type === InteractionType.APPLICATION_COMMAND) {
     const name = interaction.data.name as string;
     let response;
+    // In DMs interaction.member is undefined; use interaction.user as fallback
+    const callerId = interaction.member?.user?.id ?? interaction.user?.id;
+
     switch (name) {
       case 'hi':
         response = await hi();
         break;
       case 'connect':
-        response = await connect(interaction.member.user.id);
+        response = await connect(callerId);
         break;
       case 'tracks':
-        response = await tracks(interaction.member.user.id);
+        response = await tracks(callerId);
         break;
       case 'listen': {
         // If the slash command included a target user option, use that ID; otherwise, fall back to the caller.
-        let targetUserId = interaction.member.user.id;
+        let targetUserId = callerId;
+        let dmFlag: boolean | undefined = undefined;
+        if (Array.isArray(interaction.data.options)) {
+          const dmOpt = (interaction.data.options as any[]).find((opt) => opt.name === 'dm');
+          if (dmOpt !== undefined) dmFlag = Boolean(dmOpt.value);
+        }
         if (interaction.data.options && Array.isArray(interaction.data.options)) {
           const userOpt = (interaction.data.options as Array<any>).find((opt) => opt.name === 'user');
           if (userOpt && typeof userOpt.value === 'string') {
@@ -69,12 +77,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           targetUserId,
           interaction.channel_id,
           interaction.guild_id,
-          interaction.member.user.id,
+          callerId,
+          dmFlag,
         );
         break;
       }
       case 'help':
-        response = await help(interaction.member.user.id);
+        response = await help(callerId);
         break;
       case 'chat':
         response = await chat(interaction.guild_id, interaction.channel_id);
@@ -86,10 +95,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         response = await imageCommand(interaction);
         break;
       case 'setimage':
-        response = await setimage(interaction.member.user.id);
+        response = await setimage(callerId);
         break;
       case 'disconnect':
-        response = await disconnect(interaction.member.user.id);
+        response = await disconnect(callerId);
         break;
       default:
         response = {

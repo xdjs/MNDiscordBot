@@ -10,6 +10,7 @@ export async function listen(
   channelId: string,
   guildId: string | undefined,
   invokerId: string,
+  dmFlag?: boolean,
 ) {
   try {
     // 1. Fetch the user object to see if the target is a bot account
@@ -56,12 +57,49 @@ export async function listen(
   // ---- Spotify user flow ----
   let hookStatus: string | null = null;
 
+  // Retrieve stored preference if flag not provided
+  let effectiveDM = dmFlag;
+  if (effectiveDM === undefined) {
+    try {
+      const { data } = await supabase
+        .from('profiles')
+        .select('listen_dm')
+        .eq('user_id', invokerId)
+        .maybeSingle();
+      effectiveDM = data?.listen_dm ?? false;
+    } catch {/* ignore */}
+  }
+
+  // Persist preference if user explicitly provided the flag
+  if (dmFlag !== undefined) {
+    await supabase.from('profiles').upsert({ user_id: invokerId, listen_dm: dmFlag });
+  }
+
+  let destChannelId = channelId;
+
+  if (effectiveDM) {
+    // open DM with invoker
+    try {
+      const dmResp = await fetch('https://discord.com/api/v10/users/@me/channels', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bot ${BOT_TOKEN}` },
+        body: JSON.stringify({ recipient_id: invokerId }),
+      });
+      if (dmResp.ok) {
+        const dmJson = (await dmResp.json()) as { id: string };
+        destChannelId = dmJson.id;
+      }
+    } catch (err) {
+      console.error('Failed to open DM channel', err);
+    }
+  }
+
   if (LISTEN_HOOK_URL) {
     try {
       const res = await fetch(LISTEN_HOOK_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: userId, channel_id: channelId, guild_id: guildId }),
+        body: JSON.stringify({ user_id: userId, channel_id: destChannelId, guild_id: guildId }),
       });
 
       if (res.ok) {
@@ -104,10 +142,10 @@ export async function listen(
     }
   } else {
     if (listeningToSelf) {
-      reply = "🎧 Listening session started! I'll send you some fun facts.";
+      reply = `🎧 Listening session started! I'll send you some fun facts${effectiveDM ? ' in your DMs.' : '.'}`;
     } else {
       const namePart = targetUsername ? `${targetUsername}'s` : `<@${userId}>'s`;
-      reply = `🎧 Listening to ${namePart} Spotify status! I'll send you some fun facts.`;
+      reply = `🎧 Listening to ${namePart} Spotify status! I'll send you some fun facts${effectiveDM ? ' in your DMs.' : '.'}`;
     }
   }
 

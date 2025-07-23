@@ -101,7 +101,7 @@ export function registerProfileHook(app: Express) {
     }
 
     // Avatar drawing (bottom-left)
-    const avatarSize = 116;
+    const avatarSize = 60;
     const avatarX = 22;
     const avatarY = height - avatarSize - 22; // 22px bottom margin
     try {
@@ -117,18 +117,25 @@ export function registerProfileHook(app: Express) {
       console.error('[profile-hook] Avatar load error', err);
     }
 
-    // Status circle
+    // Status circle (scaled with avatar)
     ctx.fillStyle = '#3ba55d';
-    const dotR = 12;
+    const dotR = 6;
     ctx.beginPath();
     ctx.arc(avatarX + avatarSize - dotR, avatarY + avatarSize - dotR, dotR, 0, Math.PI * 2);
     ctx.fill();
 
     // Username text aligned to bottom
-    ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 42px Sans';
     ctx.textBaseline = 'bottom';
     const textY = height - 22; // 22px bottom padding to match avatar
+
+    // Draw black outline first
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = '#000000';
+    ctx.strokeText(username ?? 'Unknown', avatarX + avatarSize + 30, textY);
+
+    // Fill white text on top
+    ctx.fillStyle = '#ffffff';
     ctx.fillText(username ?? 'Unknown', avatarX + avatarSize + 30, textY);
 
     const buffer: Buffer = await (canvas as any).png;

@@ -109,9 +109,10 @@ export function registerImageHook(app: Express) {
         (t: any, i: number) => `${i + 1}. ${t.name} – ${t.artists.map((a: any) => a.name).join(', ')}`,
       );
       const prompt =
-        `Create a cohesive, high-quality personlized picture of someone (a person listening in their room) listening to the following songs:\n` +
+        `Create a cohesive, high-quality WIDE banner image (approx 3-4:1 aspect) that could be used as the background of a small profile card. ` +
+        `It should depict a person in their room listening to music that evokes the following track list:\n` +
         tracksArray.join('\n') +
-        `\nDo not include any text in the image, other than the song/artist names that could be on posters, cds, etc.`;
+        `\nAvoid placing any critical elements at the extreme edges because the image might be cropped. Do NOT include any textual captions other than incidental song/artist names that could appear on posters or album covers in the scene.`;
 
       const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
       if (!OPENAI_API_KEY) throw new Error('OPENAI_API_KEY not set');
@@ -122,7 +123,7 @@ export function registerImageHook(app: Express) {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${OPENAI_API_KEY}`,
         },
-        body: JSON.stringify({ prompt, n: 1, size: '1024x1024', model: 'dall-e-3' }),
+        body: JSON.stringify({ prompt, n: 1, size: '1792x1024', model: 'dall-e-3' }),
       });
 
       if (!imgRes.ok) {
