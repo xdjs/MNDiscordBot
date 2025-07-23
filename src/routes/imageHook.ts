@@ -160,14 +160,40 @@ export function registerImageHook(app: Express) {
       try {
         const resp = await fetch(imageUrlRemote);
         const buf = Buffer.from(await resp.arrayBuffer());
-        const filePath = `top_tracks/${userId}.png`;
+
+        // Upload to a timestamped key so we can keep a history, then purge older ones
+        const timestamp = Date.now();
+        const folder = 'top_tracks';
+        const newFileName = `${userId}-${timestamp}.png`;
+        const filePath = `${folder}/${newFileName}`;
+
         await supabase.storage
           .from('track-images')
-          .upload(filePath, buf, { upsert: true, contentType: 'image/png' });
+          .upload(filePath, buf, { upsert: false, contentType: 'image/png' });
 
+        // Make it public and capture the URL
         const { data: pub } = supabase.storage.from('track-images').getPublicUrl(filePath);
         if (pub?.publicUrl) {
           finalUrl = pub.publicUrl;
+        }
+
+        // --- Delete any older objects for this user (keep only the newest we just uploaded) ---
+        try {
+          const { data: objects } = await supabase.storage
+            .from('track-images')
+            .list(folder);
+
+          if (objects && objects.length) {
+            const toDelete = objects
+              .filter((o) => o.name !== newFileName && o.name.startsWith(`${userId}`))
+              .map((o) => `${folder}/${o.name}`);
+
+            if (toDelete.length) {
+              await supabase.storage.from('track-images').remove(toDelete);
+            }
+          }
+        } catch (cleanErr) {
+          console.error('[image-hook] cleanup error', cleanErr);
         }
       } catch (uploadErr) {
         console.error('[image-hook] image upload error', uploadErr);
