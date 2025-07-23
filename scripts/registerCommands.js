@@ -11,7 +11,6 @@ if (!token || !clientId) {
 
 // Define the slash-command payloads for this version of the bot
 const commands = [
-  new SlashCommandBuilder().setName('hi').setDescription('Say hi!').setDMPermission(true),
   new SlashCommandBuilder().setName('connect').setDescription('Link your Spotify account').setDMPermission(true),
   new SlashCommandBuilder().setName('disconnect').setDescription('Unlink your Spotify account').setDMPermission(true),
   new SlashCommandBuilder().setName('tracks').setDescription('Get your top 10 Spotify tracks').setDMPermission(true),

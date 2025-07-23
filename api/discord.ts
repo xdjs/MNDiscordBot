@@ -2,7 +2,6 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { verifyKey, InteractionType, InteractionResponseType } from 'discord-interactions';
 import 'dotenv/config';
 
-import { hi } from './commands/hi.js';
 import { connect } from './commands/connect.js';
 import { tracks } from './commands/tracks.js';
 import { listen } from './commands/listen.js';
@@ -49,9 +48,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const callerId = interaction.member?.user?.id ?? interaction.user?.id;
 
     switch (name) {
-      case 'hi':
-        response = await hi();
-        break;
       case 'connect':
         response = await connect(callerId);
         break;
