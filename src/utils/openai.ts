@@ -38,25 +38,40 @@ export async function getFunFact(artist: string, track?: string): Promise<string
 
   const lookups: (ArtistLinks | null | { skip: true })[] = [];
   const contextParts: string[] = [];
+  let hasContext = false;
 
   for (const aName of artistNames) {
     const row = await fetchArtistLinksByName(aName);
     lookups.push(row as any);
     if ((row as any)?.skip) continue; // skip when pool busy
-    if (row && row.spotify) {
-      contextParts.push(`- ${aName}: https://open.spotify.com/artist/${row.spotify}`);
+    if (row) {
+      const r: any = row;
+      const link = r.youtube
+        ? r.youtube
+        : r.tiktok
+        ? r.tiktok
+        : r.x
+        ? r.x
+        : r.instagram ?? null;
+
+      if (link) {
+        contextParts.push(`- ${aName}: ${link}`);
+        hasContext = true;
+      } else {
+        contextParts.push(`- ${aName}: not found`);
+      }
     } else {
       contextParts.push(`- ${aName}: not found`);
     }
   }
 
-  const hasContext = contextParts.some((p) => !p.endsWith('not found'));
+  // already computed
 
   let socialCtx = '';
   socialCtx = `Spotify profiles for the credited artist(s):\n${contextParts.map((p,i)=>`[${i+1}] ${p}`).join('\n')}\n\n`;
 
   const basePrompt = track
-    ? `Give me a true, lesser-known fun fact about the song "${track}" OR its credited artist(s) (${artist})
+    ? `Give me a true, lesser-known fun fact about the song "${track}"(it might be in a different language) OR its credited artist(s) (${artist})
     (If you cannot find anything about the song, then share a fun fact about the credited artist(s). 
     If you cannot find anything at all DO NOT SAY "If you have any other questions, feel free to ask!" AT THE END OF YOUR RESPONSE). `
     : `Give me a true, lesser-known fun fact about the artist ${artist}. `;
