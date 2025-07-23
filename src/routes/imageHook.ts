@@ -202,19 +202,24 @@ export function registerImageHook(app: Express) {
       // Send embed
       await patchOriginal(appId!, token!, { embeds: [{ image: { url: finalUrl } }] });
 
-      // Cache record in DB (fire-and-forget)
-      (async () => {
-        try {
-          await supabase.from('track_images').upsert({
+      // --- Cache record in DB ---
+      try {
+        const { error: upErr } = await supabase
+          .from('track_images')
+          .upsert({
             user_id: userId,
             image_url: finalUrl,
             track_ids: trackIds,
             updated_at: new Date().toISOString(),
-          });
-        } catch (err) {
-          console.error('[image-hook] upsert error', err);
+          })
+          .throwOnError();
+
+        if (upErr) {
+          console.error('[image-hook] upsert error', upErr);
         }
-      })();
+      } catch (err) {
+        console.error('[image-hook] upsert threw', err);
+      }
 
       return res.json({ status: 'done' });
     } catch (err) {
