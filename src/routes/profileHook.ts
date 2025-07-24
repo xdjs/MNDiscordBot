@@ -143,13 +143,36 @@ export function registerProfileHook(app: Express) {
     // --- Upload card to Supabase Storage ---
     let cardUrl: string | null = null;
     try {
-      const filePath = `cards/${userId}-${Date.now()}.png`;
+      const timestamp = Date.now();
+      const folder = 'cards';
+      const newFileName = `${userId}-${timestamp}.png`;
+      const filePath = `${folder}/${newFileName}`;
+
       await supabase.storage
         .from('profile-cards')
         .upload(filePath, buffer, { upsert: false, contentType: 'image/png' });
 
       const { data } = supabase.storage.from('profile-cards').getPublicUrl(filePath);
       cardUrl = data.publicUrl;
+
+      // --- Delete older cards for this user ---
+      try {
+        const { data: objects } = await supabase.storage
+          .from('profile-cards')
+          .list(folder);
+
+        if (objects && objects.length) {
+          const toDelete = objects
+            .filter((o) => o.name !== newFileName && o.name.startsWith(`${userId}`))
+            .map((o) => `${folder}/${o.name}`);
+
+          if (toDelete.length) {
+            await supabase.storage.from('profile-cards').remove(toDelete);
+          }
+        }
+      } catch (cleanErr) {
+        console.error('[profile-hook] cleanup error', cleanErr);
+      }
     } catch (uploadErr) {
       console.error('[profile-hook] card upload error', uploadErr);
     }
