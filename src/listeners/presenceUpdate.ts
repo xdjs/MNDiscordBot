@@ -37,6 +37,11 @@ export function registerPresenceListener(client: Client, rest: REST) {
 
     try {
       await rest.post(Routes.channelMessages(session.channelId), { body: { content: `🎶 ${fact}` } });
+
+      // Reset inactivity timer **after** successfully sending a fun fact as well.
+      // This provides an extra safety net in case presenceUpdate frequency is sparse
+      // (e.g. very long tracks or rare presence refreshes).
+      scheduleListenTimeout(userId, rest);
     } catch (err) {
       console.error('Failed to post fun fact', err);
     }
