@@ -83,17 +83,16 @@ export async function image(interaction: any) {
       }
     };
 
-    postWithRetry()
-      .then(async (resp) => {
-        console.log('[image] hook status', resp.status);
-        const body = await resp.text().catch(() => '');
-        if (!resp.ok) {
-          console.error('[image] hook body', body.slice(0, 200));
-        }
-      })
-      .catch((err) => {
-        console.error('[image] fetch error', err);
-      });
+    try {
+      const resp = await postWithRetry();
+      console.log('[image] hook status', resp.status);
+      const body = await resp.text().catch(() => '');
+      if (!resp.ok) {
+        console.error('[image] hook body', body.slice(0, 200));
+      }
+    } catch (err) {
+      console.error('[image] fetch error', err);
+    }
   } catch (err) {
     console.error('[image] Failed to queue image hook', err);
   }

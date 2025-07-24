@@ -82,17 +82,16 @@ export async function profile(interaction: any) {
         }
       };
 
-      postWithRetry()
-        .then(async (resp) => {
-          console.log('[profile] hook status', resp.status);
-          const body = await resp.text().catch(() => '');
-          if (!resp.ok) {
-            console.error('[profile] hook body', body.slice(0, 200));
-          }
-        })
-        .catch((err) => {
-          console.error('[profile] fetch error', err);
-        });
+      try {
+        const resp = await postWithRetry();
+        console.log('[profile] hook status', resp.status);
+        const body = await resp.text().catch(() => '');
+        if (!resp.ok) {
+          console.error('[profile] hook body', body.slice(0, 200));
+        }
+      } catch (err) {
+        console.error('[profile] fetch error', err);
+      }
     } catch (err) {
       console.error('[profile] fetch error', err);
     }
