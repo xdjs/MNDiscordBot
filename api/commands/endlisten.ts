@@ -25,11 +25,24 @@ function getListenStopUrl(): string | null {
  * Ends the current listening session for the invoking user.
  */
 export async function endlisten(interaction: any) {
-  const userObj = interaction.member?.user ?? interaction.user;
-  const userId = userObj.id;
+  const baseUserObj = interaction.member?.user ?? interaction.user;
+
+  // Default target user is the invoker, may be overridden by option
+  let targetUserId = baseUserObj.id;
+
+  const sub = Array.isArray(interaction.data?.options) && interaction.data.options.length
+    ? (interaction.data.options[0] as any)
+    : null;
+
+  if (sub && Array.isArray(sub.options)) {
+    const userOpt = sub.options.find((o: any) => o.name === 'user');
+    if (userOpt && typeof userOpt.value === 'string') {
+      targetUserId = userOpt.value;
+    }
+  }
 
   const payload = {
-    user_id: userId,
+    user_id: targetUserId,
     channel_id: interaction.channel_id,
     application_id: interaction.application_id,
     interaction_token: interaction.token,
@@ -76,7 +89,7 @@ export async function endlisten(interaction: any) {
   return {
     type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
     data: {
-      content: '🛑 Your listening session has been ended.',
+      content: `🛑 Listening session for <@${targetUserId}> has been ended.`,
       flags: 64,
     },
   };

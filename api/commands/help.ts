@@ -14,11 +14,11 @@ export async function help(userId: string) {
   \n/image - Generate a personalized picture of you listening to your top 10 Spotify tracks.
   \n/setimage - Use your generated image as profile background.
   \n/chat - Start a chat with the bot.(must have a text channel labeled "bot-chat")
-  \n/listen - Give you fun facts about the artist you are listening to.
+  \n/listen start - Give you fun facts about the artist you are listening to.
   \nTo make this work please connect Spotify to your Discord (Settings → Connections) and enable the \"Display current activity\" option.\nStart listening to a song and then type /listen to get fun facts about the artist.
-  \n/listen user<username> - Give you fun facts about the artist that user is listening to. (has to have Spotify status enabled).
-  \n/listen user<bot> - Give you fun facts about the artist that the music bot is playing.
-  \n/listen dm:(true/false) - true = send the facts to your DMs, false = send the facts to the serverchannel.(like a switch)
+  \n/listen start user<username> - Give you fun facts about the artist that user is listening to. (has to have Spotify status enabled).
+  \n/listen start user<bot> - Give you fun facts about the artist that the music bot is playing.
+  \n/listen start dm:(true/false) - true = send the facts to your DMs, false = send the facts to the serverchannel.(like a switch)
   \n/listen end (@user) - force ends the listening session.`;
   
   // Create (or fetch existing) DM channel with the user

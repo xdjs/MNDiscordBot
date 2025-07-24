@@ -40,7 +40,13 @@ const commands = [
     .addSubcommand((sc) =>
       sc
         .setName('end')
-        .setDescription('End your current listening session'),
+        .setDescription('End your current listening session')
+        .addUserOption((option) =>
+          option
+            .setName('user')
+            .setDescription('User whose listening session to end (defaults to yourself)')
+            .setRequired(false),
+        ),
     ),
   new SlashCommandBuilder().setName('help').setDescription('Show help information').setDMPermission(true),
   new SlashCommandBuilder().setName('chat').setDescription('Prompt questions in #bot-chat').setDMPermission(false),
