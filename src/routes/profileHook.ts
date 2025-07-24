@@ -2,6 +2,8 @@ import { Express } from 'express';
 import { Canvas, loadImage } from 'skia-canvas';
 import { supabase } from '../../api/lib/supabase.js';
 import { patchOriginal } from '../utils/discord.js';
+import { existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 interface ProfileHookBody {
   user_id?: string;
@@ -63,7 +65,13 @@ export function registerProfileHook(app: Express) {
       import('node:worker_threads').then(async ({ Worker }) => {
         try {
           const pngBuffer: Buffer = await new Promise((resolve, reject) => {
-            const worker = new Worker(new URL('../workers/profileCardWorker.ts', import.meta.url), {
+            // Prefer the compiled .js worker in production; fallback to .ts for dev environments running via ts-node/tsx.
+            const jsUrl = new URL('../workers/profileCardWorker.js', import.meta.url);
+            const tsUrl = new URL('../workers/profileCardWorker.ts', import.meta.url);
+
+            const chosenUrl = existsSync(fileURLToPath(jsUrl)) ? jsUrl : tsUrl;
+
+            const worker = new Worker(chosenUrl, {
               workerData: { username, avatarUrl, bgUrl },
             } as any);
             worker.once('message', resolve);

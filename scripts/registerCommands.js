@@ -14,20 +14,33 @@ const commands = [
   new SlashCommandBuilder().setName('connect').setDescription('Link your Spotify account').setDMPermission(true),
   new SlashCommandBuilder().setName('disconnect').setDescription('Unlink your Spotify account').setDMPermission(true),
   new SlashCommandBuilder().setName('tracks').setDescription('Get your top 10 Spotify tracks').setDMPermission(true),
+  // /listen start …  /listen end
   new SlashCommandBuilder()
     .setName('listen')
-    .setDescription('Start a listening session')
-    .addUserOption((option) =>
-      option
-        .setName('user')
-        .setDescription('The user whose Spotify status to listen to (defaults to yourself)')
-        .setRequired(false)
+    .setDescription('Listening-session commands')
+    // sub-command: start
+    .addSubcommand((sc) =>
+      sc
+        .setName('start')
+        .setDescription('Start a listening session')
+        .addUserOption((option) =>
+          option
+            .setName('user')
+            .setDescription('User whose Spotify status to listen to (defaults to yourself)')
+            .setRequired(false),
+        )
+        .addBooleanOption((opt) =>
+          opt
+            .setName('dm')
+            .setDescription('Send fun facts to your DMs (true) or this channel (false)')
+            .setRequired(false),
+        ),
     )
-    .addBooleanOption((opt) =>
-      opt
-        .setName('dm')
-        .setDescription('Send fun facts to your DMs (true) or this channel (false)')
-        .setRequired(false)
+    // sub-command: end
+    .addSubcommand((sc) =>
+      sc
+        .setName('end')
+        .setDescription('End your current listening session'),
     ),
   new SlashCommandBuilder().setName('help').setDescription('Show help information').setDMPermission(true),
   new SlashCommandBuilder().setName('chat').setDescription('Prompt questions in #bot-chat').setDMPermission(false),

@@ -9,6 +9,7 @@ import { registerChatHook } from '../src/routes/chatHook.js';
 import { registerMusicHook } from '../src/routes/musicHook.js';
 import { registerProfileHook } from '../src/routes/profileHook.js';
 import { registerImageHook } from '../src/routes/imageHook.js';
+import { registerListenStopHook } from '../src/routes/listenStopHook.js';
 import { registerPresenceListener } from '../src/listeners/presenceUpdate.js';
 import { registerMessageListener } from '../src/listeners/messageCreate.js';
 
@@ -49,6 +50,7 @@ registerChatHook(app, client);
 registerMusicHook(app);
 registerProfileHook(app);
 registerImageHook(app);
+registerListenStopHook(app, rest);
 
 // Register Discord listeners
 registerPresenceListener(client, rest);

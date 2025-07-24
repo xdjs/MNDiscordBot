@@ -18,7 +18,8 @@ export async function help(userId: string) {
   \nTo make this work please connect Spotify to your Discord (Settings → Connections) and enable the \"Display current activity\" option.\nStart listening to a song and then type /listen to get fun facts about the artist.
   \n/listen user<username> - Give you fun facts about the artist that user is listening to. (has to have Spotify status enabled).
   \n/listen user<bot> - Give you fun facts about the artist that the music bot is playing.
-  \n/listen dm:(true/false) - true = send the facts to your DMs, false = send the facts to the serverchannel.(like a switch)`;
+  \n/listen dm:(true/false) - true = send the facts to your DMs, false = send the facts to the serverchannel.(like a switch)
+  \n/listen end (@user) - force ends the listening session.`;
   
   // Create (or fetch existing) DM channel with the user
   const dmRes = await fetch('https://discord.com/api/v10/users/@me/channels', {
