@@ -40,7 +40,12 @@ export async function image(interaction: any) {
     };
   }
 
-  // 3. Fire-and-forget webhook to Render for image generation
+  // 3. If we already had a cached image we can stop here – avoid duplicate follow-up.
+  if (immediateResponse.data?.embeds) {
+    return immediateResponse;
+  }
+
+  // 4. Otherwise fire-and-forget webhook to Render for image generation
   try {
     const user = userObj;
     const payload = {
