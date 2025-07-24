@@ -6,6 +6,7 @@ import { connect } from './commands/connect.js';
 import { tracks } from './commands/tracks.js';
 import { listen } from './commands/listen.js';
 import { help } from './commands/help.js';
+import { endlisten } from './commands/endlisten.js';
 import { chat } from './commands/chat.js';
 import { profile } from './commands/profile.js';
 import { image as imageCommand } from './commands/image.js';
@@ -55,18 +56,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         response = await tracks(callerId);
         break;
       case 'listen': {
-        // If the slash command included a target user option, use that ID; otherwise, fall back to the caller.
+        // For a sub-command based slash command, the first option contains the sub-command object.
+        const sub = Array.isArray(interaction.data.options) && interaction.data.options.length
+          ? (interaction.data.options[0] as any)
+          : null;
+
+        const subName = sub?.name ?? 'start';
+
+        if (subName === 'end') {
+          // Handle /listen end – terminate current listening session.
+          response = await endlisten(interaction);
+          break;
+        }
+
+        // Default to /listen start flow.
+        const opts = sub?.options ?? [];
+
         let targetUserId = callerId;
         let dmFlag: boolean | undefined = undefined;
-        if (Array.isArray(interaction.data.options)) {
-          const dmOpt = (interaction.data.options as any[]).find((opt) => opt.name === 'dm');
+
+        if (Array.isArray(opts)) {
+          const userOpt = opts.find((o: any) => o.name === 'user');
+          if (userOpt && typeof userOpt.value === 'string') targetUserId = userOpt.value;
+
+          const dmOpt = opts.find((o: any) => o.name === 'dm');
           if (dmOpt !== undefined) dmFlag = Boolean(dmOpt.value);
-        }
-        if (interaction.data.options && Array.isArray(interaction.data.options)) {
-          const userOpt = (interaction.data.options as Array<any>).find((opt) => opt.name === 'user');
-          if (userOpt && typeof userOpt.value === 'string') {
-            targetUserId = userOpt.value;
-          }
         }
 
         response = await listen(
