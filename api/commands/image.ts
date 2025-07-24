@@ -10,7 +10,8 @@ export async function image(interaction: any) {
   const userObj = interaction.member?.user ?? interaction.user;
   const userId = userObj.id;
 
-  // 1. Check for cached image
+  // 1. Check for cached image – we'll still queue regeneration later, but show it instantly if present
+  let immediateResponse: any = null;
   try {
     const { data: existing } = await supabase
       .from('track_images')
@@ -19,7 +20,7 @@ export async function image(interaction: any) {
       .maybeSingle();
 
     if (existing?.image_url) {
-      return {
+      immediateResponse = {
         type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
         data: { embeds: [{ image: { url: existing.image_url } }] },
       };
@@ -28,14 +29,16 @@ export async function image(interaction: any) {
     console.error('[image] cache lookup error', cacheErr);
   }
 
-  // 2. Send an immediate ephemeral response while generating
-  const immediateResponse = {
-    type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-    data: {
-      content: '🎨 Generating your personalized image… this may take a minute.',
-      flags: 64, // ephemeral so only the user sees it
-    },
-  };
+  // Fallback message when no cached image yet
+  if (!immediateResponse) {
+    immediateResponse = {
+      type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+      data: {
+        content: '🎨 Generating your personalized image… this may take a minute.',
+        flags: 64, // ephemeral so only the user sees it
+      },
+    };
+  }
 
   // 3. Fire-and-forget webhook to Render for image generation
   try {
@@ -80,17 +83,16 @@ export async function image(interaction: any) {
       }
     };
 
-    postWithRetry()
-      .then(async (resp) => {
-        console.log('[image] hook status', resp.status);
-        const body = await resp.text().catch(() => '');
-        if (!resp.ok) {
-          console.error('[image] hook body', body.slice(0, 200));
-        }
-      })
-      .catch((err) => {
-        console.error('[image] fetch error', err);
-      });
+    try {
+      const resp = await postWithRetry();
+      console.log('[image] hook status', resp.status);
+      const body = await resp.text().catch(() => '');
+      if (!resp.ok) {
+        console.error('[image] hook body', body.slice(0, 200));
+      }
+    } catch (err) {
+      console.error('[image] fetch error', err);
+    }
   } catch (err) {
     console.error('[image] Failed to queue image hook', err);
   }

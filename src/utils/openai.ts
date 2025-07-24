@@ -115,10 +115,14 @@ export async function getFunFact(artist: string, track?: string): Promise<string
     if (!rowPicked || rowPicked.skip) {
       // pool skip or no row
       const baseUrl = process.env.BASE_URL || 'https://your-site.com/add-artist';
-      footer = `\n\n*Our DB doesn’t yet include this artist — adding them helps reduce hallucinations:* ${baseUrl}`;
-    } else if (!rowPicked.spotify) {
-      const baseUrl = process.env.BASE_URL || 'https://your-site.com/add-artist';
-      footer = `\n\n*Our DB doesn't have enough information about this artist — adding more helps reduce hallucinations:* ${baseUrl}/artist/${rowPicked.id}`;
+      footer = `\n\n*Our DB doesn’t yet include this artist — adding them helps reduce hallucinations:* ${baseUrl}\n`;
+    } else {
+      const r:any = rowPicked;
+      const hasAny = r.youtube || r.tiktok || r.x || r.instagram;
+      if (!hasAny) {
+        const baseUrl = process.env.BASE_URL || 'https://your-site.com/add-artist';
+        footer = `\n\n*Our DB doesn't have enough information about this artist — adding more helps reduce hallucinations:* ${baseUrl}/artist/${r.id}\n`;
+      }
     }
   } else {
     // No tag parsed – fall back footer logic
@@ -135,8 +139,9 @@ export async function getFunFact(artist: string, track?: string): Promise<string
 export async function getSongFunFact(nowPlayingLine: string): Promise<string> {
   if (!OPENAI_API_KEY) return `${nowPlayingLine} sounds great!`;
 
-  const prompt = `The following Discord message came from a music bot and announces what it is currently playing.\n` +
-    `Message: \"${nowPlayingLine}\"\n` +
+  const prompt =
+    `The following Discord message came from a music bot and announces what it is currently playing.\n` +
+    `Message: "${nowPlayingLine}"\n` +
     `Extract the song (and artist if present) and give me one fun fact about that song in 1-2 sentences. ` +
     `If you cannot identify the song, reply: I'm sorry but I couldn't find anything about that song.`;
 
@@ -196,4 +201,4 @@ export async function getChatAnswer(question: string, song?: SongContext): Promi
     console.error('OpenAI chat error', err);
     return "Something went wrong.";
   }
-} 
+}
