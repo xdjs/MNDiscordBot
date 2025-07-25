@@ -22,12 +22,14 @@ export function registerPresenceListener(client: Client, rest: REST) {
 
     // New song
     const artistRaw = spotifyAct.state || spotifyAct.assets?.largeText?.split(' – ')[0] || '';
+    console.log('[presence] raw artist extracted:', artistRaw, 'user', userId);
     const artistText =
       artistRaw
         .split(/[;,]/)
         .map((s) => s.trim())
         .filter(Boolean)
         .join(', ') || 'Unknown artist';
+    console.log('[presence] artistText normalized:', artistText, 'user', userId);
 
     session.lastTrackId = trackIdentifier;
     session.factCount += 1;
