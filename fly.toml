@@ -1,0 +1,20 @@
+app = "mn-discord-bot"
+
+[env]
+PORT = "8080"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[processes]
+  web = "npm run start"
+  worker-image = "node dist/src/workers/image.js"
+  worker-profile = "node dist/src/workers/profile.js"
+  worker-listen = "node dist/src/workers/listen.js"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  processes = ["web"] 

@@ -60,21 +60,7 @@ export async function chat(guildId: string | undefined, _interactionChannelId: s
       body: JSON.stringify({ content: 'What questions do you have?' }),
     });
 
-    // After posting prompt, notify Render chat hook (if env set)
-    const CHAT_HOOK_URL = process.env.CHAT_HOOK_URL;
-    if (CHAT_HOOK_URL) {
-      try {
-        const resp = await fetch(CHAT_HOOK_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ channel_id: botChatId }),
-        });
-        console.log('[chat-hook] status', resp.status);
-        if (!resp.ok) console.log('[chat-hook] body', await resp.text());
-      } catch (err) {
-        console.error('Failed to hit chat hook', err);
-      }
-    }
+    // We no longer notify an external chat hook – all logic handled within the bot.
   } catch (err) {
     console.error('Failed to post message to #bot-chat', err);
     // We can still acknowledge the command even if posting fails

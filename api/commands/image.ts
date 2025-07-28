@@ -45,61 +45,16 @@ export async function image(interaction: any) {
     return immediateResponse;
   }
 
-  // 4. Otherwise fire-and-forget webhook to Render for image generation
+  // 4. Otherwise enqueue a background job inside the same Fly app
   try {
-    const user = userObj;
-    const payload = {
-      user_id: user.id,
+    const { enqueueImageJob } = await import('../../src/workers/queue.js');
+    enqueueImageJob({
+      user_id: userObj.id,
       application_id: interaction.application_id,
       interaction_token: interaction.token,
-    };
-
-    console.log('[image] app', interaction.application_id);
-    console.log('[image] →', process.env.IMAGE_HOOK_URL);
-    console.log('[image] token', interaction.token.slice(0, 8) + '…', 'len', interaction.token.length);
-
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (process.env.IMAGE_HOOK_SECRET) {
-      headers['X-Image-Signature'] = process.env.IMAGE_HOOK_SECRET;
-    }
-
-    // Ping health endpoint first to wake Render
-    try {
-      const healthUrl = new URL(process.env.IMAGE_HOOK_URL!);
-      healthUrl.pathname = '/_health';
-      await fetch(healthUrl.toString(), { method: 'GET' }).catch(() => {});
-    } catch {/* ignore */}
-
-    const postOnce = () => fetch(process.env.IMAGE_HOOK_URL!, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(payload),
     });
-
-    const postWithRetry = async () => {
-      try {
-        return await postOnce();
-      } catch (err: any) {
-        if (err?.code === 'ECONNRESET') {
-          await new Promise((r) => setTimeout(r, 1000));
-          return postOnce();
-        }
-        throw err;
-      }
-    };
-
-    try {
-      const resp = await postWithRetry();
-      console.log('[image] hook status', resp.status);
-      const body = await resp.text().catch(() => '');
-      if (!resp.ok) {
-        console.error('[image] hook body', body.slice(0, 200));
-      }
-    } catch (err) {
-      console.error('[image] fetch error', err);
-    }
   } catch (err) {
-    console.error('[image] Failed to queue image hook', err);
+    console.error('[image] Failed to enqueue image job', err);
   }
 
   return immediateResponse;
