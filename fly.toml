@@ -23,3 +23,9 @@ primary_region = 'sea'
   cpus = 1
   memory_mb = 1024
 
+[processes]
+  web = "npm run start"
+  worker-image = "node dist/src/workers/image.js"
+  worker-profile = "node dist/src/workers/profile.js"
+  worker-listen = "node dist/src/workers/listen.js"
+
