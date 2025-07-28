@@ -25,7 +25,4 @@ primary_region = 'sea'
 
 [processes]
   web = "npm run start"
-  worker-image = "node dist/src/workers/image.js"
-  worker-profile = "node dist/src/workers/profile.js"
-  worker-listen = "node dist/src/workers/listen.js"
 
