@@ -1,8 +1,7 @@
 import { InteractionResponseType } from 'discord-interactions';
 import { supabase } from '../lib/supabase.js';
+// later dynamic import queue
 
-const LISTEN_HOOK_URL = process.env.LISTEN_HOOK_URL;
-const MUSIC_HOOK_URL = process.env.MUSIC_HOOK_URL;
 const BOT_TOKEN = process.env.DISCORD_BOT_TOKEN!;
 
 export async function listen(
@@ -23,29 +22,10 @@ export async function listen(
 
       if (userJson.bot) {
         // ---- Music bot flow ----
-        if (MUSIC_HOOK_URL) {
-          try {
-            await fetch(MUSIC_HOOK_URL, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ channel_id: channelId, bot_id: userId }),
-            });
-          } catch (err) {
-            console.error('Failed to hit music hook', err);
-          }
-
-          return {
-            type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-            data: {
-              content: `🎶 Listening for now-playing messages from <@${userId}>!`,
-            },
-          };
-        }
-
-        // MUSIC_HOOK_URL not configured
+        // TODO: Optionally implement music bot worker; for now return not supported
         return {
           type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-          data: { content: '⚠️ Music listening feature is not configured.' },
+          data: { content: '⚠️ Music listening feature is not yet supported.' },
         };
       }
     }
@@ -126,21 +106,11 @@ export async function listen(
     }
   }
 
-  if (LISTEN_HOOK_URL) {
-    try {
-      const res = await fetch(LISTEN_HOOK_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: userId, channel_id: destChannelId, guild_id: guildId }),
-      });
-
-      if (res.ok) {
-        const json = (await res.json()) as { status?: string };
-        hookStatus = json.status ?? null;
-      }
-    } catch (err) {
-      console.error('Failed to hit listen webhook', err);
-    }
+  try {
+    const { enqueueListenJob } = await import('../../src/workers/queue.js');
+    enqueueListenJob({ user_id: userId, channel_id: destChannelId, guild_id: guildId! });
+  } catch (err) {
+    console.error('Failed to enqueue listen job', err);
   }
 
   // Analytics row (optional)
