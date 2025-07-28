@@ -13,7 +13,7 @@ app.post(
 // Simple health check
 app.get('/_health', (_, res) => res.send('ok'));
 
-const PORT = Number(process.env.PORT || 8080);
+const PORT = Number(process.env.PORT || 3000);
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Web process listening on ${PORT}`);
 }); 
