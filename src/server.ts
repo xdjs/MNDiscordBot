@@ -1,5 +1,6 @@
 import express from 'express';
 import discordHandler from '../api/discord.js';
+import spotifyCallbackHandler from '../api/spotify/callback.js';
 
 const app = express();
 
@@ -7,6 +8,12 @@ const app = express();
 app.post('/api/discord', (req, res) => {
   // Pass the raw request stream directly; discordHandler handles buffering & signature.
   discordHandler(req as any, res as any);
+});
+
+// Spotify OAuth redirect/callback (GET)
+app.get('/api/spotify/callback', (req, res) => {
+  // Delegate to the existing handler used in serverless envs
+  spotifyCallbackHandler(req as any, res as any);
 });
 
 // Simple health check
