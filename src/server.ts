@@ -4,16 +4,15 @@ import discordHandler from '../api/discord.js';
 const app = express();
 
 // Discord interactions endpoint – needs raw body for signature verification
-app.post(
-  '/api/discord',
-  express.raw({ type: '*/*' }),
-  (req, res) => discordHandler(req as any, res as any),
-);
+app.post('/api/discord', (req, res) => {
+  // Pass the raw request stream directly; discordHandler handles buffering & signature.
+  discordHandler(req as any, res as any);
+});
 
 // Simple health check
 app.get('/_health', (_, res) => res.send('ok'));
 
-const PORT = Number(process.env.PORT || 8080);
+const PORT = Number(process.env.PORT || 3000);
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Web process listening on ${PORT}`);
 }); 
