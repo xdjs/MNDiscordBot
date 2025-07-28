@@ -1,5 +1,6 @@
 import { InteractionResponseType } from 'discord-interactions';
 import { supabase } from '../lib/supabase.js';
+// later will import queue
 
 /**
  * Generates a profile card image and sends it as a follow-up message.
@@ -37,66 +38,16 @@ export async function profile(interaction: any) {
   };
 
   try {
-    const user = userObj;
-    const payload = {
-      user_id: user.id,
-      username: user.username,
-      avatar: user.avatar,
+    const { enqueueProfileJob } = await import('../../src/workers/queue.js');
+    enqueueProfileJob({
+      user_id: userObj.id,
+      username: userObj.username,
+      avatar: userObj.avatar,
       application_id: interaction.application_id,
       interaction_token: interaction.token,
-    };
-
-    console.log('[profile] app', interaction.application_id);
-    console.log('[profile] →', process.env.PROFILE_HOOK_URL);
-    console.log('[profile] token', interaction.token.slice(0, 8) + '…', 'len', interaction.token.length);
-
-    try {
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (process.env.PROFILE_HOOK_SECRET) {
-        headers['X-Profile-Signature'] = process.env.PROFILE_HOOK_SECRET;
-      }
-
-      // 0. Ping health endpoint to wake Render (handles cold starts)
-      try {
-        const healthUrl = new URL(process.env.PROFILE_HOOK_URL!);
-        healthUrl.pathname = '/_health';
-        await fetch(healthUrl.toString(), { method: 'GET' }).catch(() => {});
-      } catch {/* ignore */}
-
-      const postOnce = () => fetch(process.env.PROFILE_HOOK_URL!, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(payload),
-      });
-
-      const postWithRetry = async () => {
-        try {
-          return await postOnce();
-        } catch (err: any) {
-          if (err?.code === 'ECONNRESET') {
-            // wait 1s and retry once
-            await new Promise((r) => setTimeout(r, 1000));
-            return postOnce();
-          }
-          throw err;
-        }
-      };
-
-      try {
-        const resp = await postWithRetry();
-        console.log('[profile] hook status', resp.status);
-        const body = await resp.text().catch(() => '');
-        if (!resp.ok) {
-          console.error('[profile] hook body', body.slice(0, 200));
-        }
-      } catch (err) {
-        console.error('[profile] fetch error', err);
-      }
-    } catch (err) {
-      console.error('[profile] fetch error', err);
-    }
+    });
   } catch (err) {
-    console.error('[profile] Failed to queue profile hook', err);
+    console.error('[profile] Failed to enqueue profile job', err);
   }
 
   return immediateResponse;
