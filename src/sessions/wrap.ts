@@ -11,17 +11,25 @@ export async function loadWrapGuilds() {
   }
 }
 
-export function startWrap(guildId: string) {
+export async function startWrap(guildId: string): Promise<boolean> {
   wrapGuilds.add(guildId);
-  void supabase
-    .from('wrap_guilds')
-    .upsert({ guild_id: guildId })
-    .throwOnError();
+  try {
+    const { error } = await supabase.from('wrap_guilds').upsert({ guild_id: guildId });
+    if (error) {
+      console.error('[wrap] upsert guild failed', error);
+      return false;
+    }
+    console.log(`[wrap] Enabled wrap tracking for guild ${guildId}`);
+    return true;
+  } catch (err) {
+    console.error('[wrap] upsert exception', err);
+    return false;
+  }
 }
 
-export function stopWrap(guildId: string) {
+export async function stopWrap(guildId: string): Promise<void> {
   wrapGuilds.delete(guildId);
-  void supabase.from('wrap_guilds').delete().eq('guild_id', guildId).throwOnError();
+  await supabase.from('wrap_guilds').delete().eq('guild_id', guildId);
 }
 
 export function isWrapped(guildId: string): boolean {
@@ -36,8 +44,14 @@ export function subscribeWrapGuilds() {
         const row: any = payload.new ?? payload.old ?? {};
         const guild_id = row.guild_id as string | undefined;
         if (!guild_id) return;
-        if (payload.eventType === 'INSERT') wrapGuilds.add(guild_id);
-        if (payload.eventType === 'DELETE') wrapGuilds.delete(guild_id);
+        if (payload.eventType === 'INSERT') {
+          wrapGuilds.add(guild_id);
+          console.log(`[wrap] Realtime: guild ${guild_id} added (tracking on)`);
+        }
+        if (payload.eventType === 'DELETE') {
+          wrapGuilds.delete(guild_id);
+          console.log(`[wrap] Realtime: guild ${guild_id} removed (tracking off)`);
+        }
       })
       .subscribe();
   } catch (err) {
