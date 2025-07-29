@@ -76,7 +76,7 @@ export function registerPresenceListener(client: Client, rest: REST) {
               top_track: topTrack,
               top_artist: topArtist,
               last_updated: now.toISOString(),
-              local_time: now.toISOString(),
+              // local_time column intentionally left untouched here; it's configured via /settime command
             });
           } catch (err) {
             console.error('[wrap] failed to update user_tracks', err);

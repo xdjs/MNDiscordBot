@@ -3,19 +3,12 @@ import { supabase } from '../../api/lib/supabase.js';
 import { wrapGuilds } from '../sessions/wrap.js';
 import { buildWrapPayload } from '../utils/wrapPaginator.js';
 
-// Time (UTC) to post daily summary (23:50 UTC)
-const TARGET_HOUR = 23;
-const TARGET_MINUTE = 50;
-
-function msUntilNextTarget(): number {
-  const now = new Date();
-  const target = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), TARGET_HOUR, TARGET_MINUTE, 0, 0));
-  if (now > target) {
-    // Already past today's target, schedule for tomorrow
-    target.setUTCDate(target.getUTCDate() + 1);
-  }
-  return target.getTime() - now.getTime();
-}
+// ------------------------------------------------------------------------------------------------
+// Dynamic wrap-up scheduler:
+// Every minute, determine which guilds are due for their daily post based on the UTC time stored
+// in user_tracks.local_time (set via /settime). The stored value is a string "HH:MM" representing
+// the UTC clock-time when 23:50 local happens for that guild.
+// ------------------------------------------------------------------------------------------------
 
 async function postWrapForGuild(guildId: string, client: Client, rest: REST) {
   try {
@@ -82,13 +75,47 @@ async function runDailyWrap(client: Client, rest: REST) {
 }
 
 export function initWrapScheduler(client: Client, rest: REST) {
-  async function schedule() {
-    const delay = msUntilNextTarget();
-    console.log(`[wrapScheduler] Scheduling next daily wrap in ${delay / 1000 / 60} minutes`);
-    setTimeout(async () => {
-      await runDailyWrap(client, rest);
-      schedule(); // Schedule next run
-    }, delay);
-  }
-  schedule();
+  console.log('[wrapScheduler] Initialising minute-ticker for wrap posts');
+
+  setInterval(async () => {
+    try {
+      const now = new Date();
+      const timeStr = `${now.getUTCHours().toString().padStart(2, '0')}:${now.getUTCMinutes()
+        .toString()
+        .padStart(2, '0')}`;
+
+      // Fetch guilds whose configured posting time matches current UTC minute
+      const query = supabase.from('wrap_guilds').select('guild_id, local_time');
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('[wrapScheduler] Supabase query error', error);
+        return;
+      }
+
+      // Determine which guilds should post at this minute
+      const guildIds = Array.isArray(data)
+        ? [
+            ...new Set(
+              data
+                .filter((r: any) => {
+                  const t = r.local_time as string | null | undefined;
+                  return (t ?? '23:50') === timeStr; // default to 23:50 UTC if not set
+                })
+                .map((r: any) => r.guild_id)
+                .filter(Boolean),
+            ),
+          ]
+        : [];
+
+      for (const gid of guildIds) {
+        if (!wrapGuilds.has(gid)) continue; // Only post for guilds that have wrap tracking enabled
+        await postWrapForGuild(gid, client, rest);
+        await resetDailyForGuild(gid);
+      }
+    } catch (err) {
+      console.error('[wrapScheduler] tick error', err);
+    }
+  }, 60 * 1000); // every minute
 }
