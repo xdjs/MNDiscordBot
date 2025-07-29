@@ -21,12 +21,13 @@ export function registerPresenceListener(client: Client, rest: REST) {
         const trackTitle: string = spot.details || 'Unknown title';
         console.log('[presence-wrap] extracted trackId:', trackId, 'details', spot.details);
         const raw = spot.state || spot.assets?.largeText?.split(' – ')[0] || '';
-        const artist = raw
-          .split(/[;,]/)
+        const artistNames: string[] = raw
+          .split(/[,;&]|\s+&\s+/)
           .map((s) => s.trim())
-          .filter(Boolean)
-          .join(', ') || 'Unknown artist';
-        console.log('[presence-wrap] artist:', artist);
+          .filter(Boolean);
+
+        const artistDisplay = artistNames.join(', ') || 'Unknown artist';
+        console.log('[presence-wrap] artists parsed:', artistDisplay);
 
         if (trackId) {
           try {
@@ -51,8 +52,18 @@ export function registerPresenceListener(client: Client, rest: REST) {
               }
             }
 
-            tracksArr.push({ id: trackId ?? null, title: trackTitle, ts: now.toISOString() });
-            artistsArr.push(artist);
+            // Avoid double-counting the same track when the user pauses and resumes.
+            const lastEntry = tracksArr[tracksArr.length - 1];
+            const isDuplicate =
+              lastEntry &&
+              lastEntry.id === trackId &&
+              // within 10 minutes window (safety)
+              new Date(lastEntry.ts).getTime() > now.getTime() - 10 * 60 * 1000;
+
+            if (!isDuplicate) {
+              tracksArr.push({ id: trackId ?? null, title: trackTitle, ts: now.toISOString() });
+              artistsArr.push(...artistNames);
+            }
 
             // Calculate top values
             const trackCount: Record<string, number> = {};
@@ -76,7 +87,7 @@ export function registerPresenceListener(client: Client, rest: REST) {
               top_track: topTrack,
               top_artist: topArtist,
               last_updated: now.toISOString(),
-              local_time: now.toISOString(),
+              // local_time column intentionally left untouched here; it's configured via /settime command
             });
           } catch (err) {
             console.error('[wrap] failed to update user_tracks', err);

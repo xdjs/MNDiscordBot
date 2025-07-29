@@ -56,6 +56,13 @@ const commands = [
   new SlashCommandBuilder().setName('wrap').setDescription('Start daily Spotify wrap tracking for this server').setDMPermission(false),
   new SlashCommandBuilder().setName('update').setDescription('Show current wrap standings for this server').setDMPermission(false),
   new SlashCommandBuilder().setName('unwrap').setDescription('Stop daily Spotify wrap tracking for this server').setDMPermission(false),
+  new SlashCommandBuilder()
+    .setName('settime')
+    .setDescription('Set your local time (HH:MM) for wrap-up posts')
+    .setDMPermission(true)
+    .addStringOption((opt) =>
+      opt.setName('time').setDescription('Your local time (24h HH:MM)').setRequired(true),
+    )
 ].map((c) => c.toJSON());
 
 // Utility to strip Discord-generated fields so we can compare command definitions
