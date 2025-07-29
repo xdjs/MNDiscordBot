@@ -15,13 +15,16 @@ export function registerPresenceListener(client: Client, rest: REST) {
         (a) => a.type === ActivityType.Listening && a.name === 'Spotify',
       );
       if (spot) {
+        console.log(`[presence-wrap] Guild ${guildId} | User ${userId} | New presence update detected`);
         const trackId: string | undefined = (spot as any).syncId ?? spot.details ?? undefined;
+        console.log('[presence-wrap] extracted trackId:', trackId, 'details', spot.details);
         const raw = spot.state || spot.assets?.largeText?.split(' – ')[0] || '';
         const artist = raw
           .split(/[;,]/)
           .map((s) => s.trim())
           .filter(Boolean)
           .join(', ') || 'Unknown artist';
+        console.log('[presence-wrap] artist:', artist);
 
         if (trackId) {
           try {
