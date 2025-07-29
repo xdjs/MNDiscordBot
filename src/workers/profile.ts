@@ -18,15 +18,26 @@ export async function runProfileJob(payload: ProfileJobPayload) {
   const avatarUrl = avatar ? `https://cdn.discordapp.com/avatars/${userId}/${avatar}.png?size=256` : undefined;
 
   let bgUrl: string | null = bgUrlInput ?? null;
-
-  // Check cache first
+  
+  // Preserve reference to any existing profile record
+  let existing: { card_url?: string | null; avatar_url?: string | null; bg_image_url?: string | null } | null = null;
+  
+  // Check cache first & fetch existing record
   try {
-    const { data: existing } = await supabase
+    const { data } = await supabase
       .from('profiles')
       .select('card_url, avatar_url, bg_image_url')
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
 
+    existing = data ?? null;
+
+    // If bg image not passed in payload, fall back to stored value
+    if (!bgUrl && existing?.bg_image_url) {
+      bgUrl = existing.bg_image_url;
+    }
+
+    // If we already have a cached card that matches the current avatar + background, just reuse it.
     if (existing?.card_url && existing.avatar_url === avatarUrl && existing.bg_image_url === bgUrl) {
       await patchOriginal(appId, token, { embeds: [{ image: { url: existing.card_url } }] });
       return;
