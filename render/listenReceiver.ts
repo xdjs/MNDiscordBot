@@ -12,6 +12,7 @@ import { registerImageHook } from '../src/routes/imageHook.js';
 import { registerListenStopHook } from '../src/routes/listenStopHook.js';
 import { registerPresenceListener } from '../src/listeners/presenceUpdate.js';
 import { registerMessageListener } from '../src/listeners/messageCreate.js';
+import { initWrapScheduler } from '../src/workers/wrapScheduler.js';
 
 // All heavy logic now lives in modules under src/
 
@@ -36,7 +37,10 @@ const client = new DiscordClient({
   ],
 });
 
-client.once('ready', () => console.log(`Discord presence client ready as ${client.user?.tag}`));
+client.once('ready', () => {
+  console.log(`Discord presence client ready as ${client.user?.tag}`);
+  initWrapScheduler(client, rest);
+});
 client.login(DISCORD_BOT_TOKEN);
 
 const app = express();
