@@ -13,6 +13,8 @@ import { registerListenStopHook } from '../src/routes/listenStopHook.js';
 import { registerPresenceListener } from '../src/listeners/presenceUpdate.js';
 import { registerMessageListener } from '../src/listeners/messageCreate.js';
 import { initWrapScheduler } from '../src/workers/wrapScheduler.js';
+import { loadWrapGuilds } from '../src/sessions/wrap.js';
+import { subscribeWrapGuilds } from '../src/sessions/wrap.js';
 
 // All heavy logic now lives in modules under src/
 
@@ -37,8 +39,10 @@ const client = new DiscordClient({
   ],
 });
 
-client.once('ready', () => {
+client.once('ready', async () => {
   console.log(`Discord presence client ready as ${client.user?.tag}`);
+  await loadWrapGuilds();
+  subscribeWrapGuilds();
   initWrapScheduler(client, rest);
 });
 client.login(DISCORD_BOT_TOKEN);
