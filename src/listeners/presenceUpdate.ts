@@ -6,6 +6,7 @@ import { supabase } from '../../api/lib/supabase.js';
 
 export function registerPresenceListener(client: Client, rest: REST) {
   client.on('presenceUpdate', async (_oldPresence, newPresence) => {
+    console.log('[presence] event received for user', newPresence.userId, 'guild', newPresence.guild?.id);
     const userId = newPresence.userId;
     const guildId = newPresence.guild?.id;
 
