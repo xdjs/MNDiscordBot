@@ -3,8 +3,8 @@ import { supabase } from '../../api/lib/supabase.js';
 import { wrapGuilds } from '../sessions/wrap.js';
 import { buildWrapPayload } from '../utils/wrapPaginator.js';
 
-// Time (UTC) to post daily summary
-const TARGET_HOUR = 11;
+// Time (UTC) to post daily summary (23:50 UTC)
+const TARGET_HOUR = 23;
 const TARGET_MINUTE = 50;
 
 function msUntilNextTarget(): number {
