@@ -40,6 +40,7 @@ const client = new DiscordClient({
 
 client.once('ready', async () => {
   console.log(`Discord presence client ready as ${client.user?.tag}`);
+  console.log('[debug] intents bitfield:', client.options.intents?.bitfield);
   await loadWrapGuilds();
   // Prefetch members for existing guilds to ensure presence events flow
   for (const gid of wrapGuilds) {

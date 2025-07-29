@@ -1,6 +1,8 @@
 import express from 'express';
 import discordHandler from '../api/discord.js';
 import spotifyCallbackHandler from '../api/spotify/callback.js';
+// Spin up presence listener in the same process so gateway events are captured even in single-process deployments.
+import '../render/listenReceiver.js';
 
 const app = express();
 
