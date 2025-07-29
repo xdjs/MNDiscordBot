@@ -17,7 +17,8 @@ export function registerPresenceListener(client: Client, rest: REST) {
       );
       if (spot) {
         console.log(`[presence-wrap] Guild ${guildId} | User ${userId} | New presence update detected`);
-        const trackId: string | undefined = (spot as any).syncId ?? spot.details ?? undefined;
+        const trackId: string | undefined = (spot as any).syncId ?? undefined;
+        const trackTitle: string = spot.details || 'Unknown title';
         console.log('[presence-wrap] extracted trackId:', trackId, 'details', spot.details);
         const raw = spot.state || spot.assets?.largeText?.split(' – ')[0] || '';
         const artist = raw
@@ -50,13 +51,14 @@ export function registerPresenceListener(client: Client, rest: REST) {
               }
             }
 
-            tracksArr.push({ id: trackId, ts: now.toISOString() });
+            tracksArr.push({ id: trackId ?? null, title: trackTitle, ts: now.toISOString() });
             artistsArr.push(artist);
 
             // Calculate top values
             const trackCount: Record<string, number> = {};
             for (const t of tracksArr) {
-              if (t.id) trackCount[t.id] = (trackCount[t.id] ?? 0) + 1;
+              const key = t.title ?? t.id ?? 'unknown';
+              trackCount[key] = (trackCount[key] ?? 0) + 1;
             }
             const artistCount: Record<string, number> = {};
             for (const a of artistsArr) {

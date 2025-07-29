@@ -55,6 +55,7 @@ const commands = [
   new SlashCommandBuilder().setName('setimage').setDescription('Use your generated image as profile background').setDMPermission(true),
   new SlashCommandBuilder().setName('wrap').setDescription('Start daily Spotify wrap tracking for this server').setDMPermission(false),
   new SlashCommandBuilder().setName('update').setDescription('Show current wrap standings for this server').setDMPermission(false),
+  new SlashCommandBuilder().setName('unwrap').setDescription('Stop daily Spotify wrap tracking for this server').setDMPermission(false),
 ].map((c) => c.toJSON());
 
 // Utility to strip Discord-generated fields so we can compare command definitions

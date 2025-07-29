@@ -14,6 +14,7 @@ import { setimage } from './commands/setimage.js';
 import { disconnect } from './commands/disconnect.js';
 import { wrap as wrapCommand } from './commands/wrap.js';
 import { update as updateCommand } from './commands/update.js';
+import { unwrap as unwrapCommand } from './commands/unwrap.js';
 import { buildWrapPayload } from '../src/utils/wrapPaginator.js';
 import { supabase } from './lib/supabase.js';
 
@@ -119,6 +120,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         break;
       case 'update':
         response = await updateCommand(interaction.guild_id);
+        break;
+      case 'unwrap':
+        response = await unwrapCommand(interaction.guild_id);
         break;
       default:
         response = {

@@ -21,7 +21,11 @@ export async function endlisten(interaction: any) {
     }
   }
 
-  // Remove the session if present
+  // Remove the session if present, clearing timeout first
+  const session = sessions.get(targetUserId);
+  if (session?.timeout) {
+    clearTimeout(session.timeout);
+  }
   const hadSession = sessions.delete(targetUserId);
 
   return {
