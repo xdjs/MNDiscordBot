@@ -33,8 +33,29 @@ export async function setimage(userId: string) {
 
     if (updErr || (Array.isArray(updData) && updData.length === 0)) {
       // No row existed – insert one with minimal fields
+      const BOT_TOKEN = process.env.DISCORD_BOT_TOKEN;
+      let username = 'Unknown';
+      let avatarUrl: string | null = null;
+
+      if (BOT_TOKEN) {
+        try {
+          const uResp = await fetch(`https://discord.com/api/v10/users/${userId}`, {
+            headers: { Authorization: `Bot ${BOT_TOKEN}` },
+          });
+          if (uResp.ok) {
+            const uJson = (await uResp.json()) as { username?: string; avatar?: string | null };
+            username = uJson.username ?? username;
+            if (uJson.avatar) {
+              avatarUrl = `https://cdn.discordapp.com/avatars/${userId}/${uJson.avatar}.png`;
+            }
+          }
+        } catch {/* ignore */}
+      }
+
       await supabase.from('profiles').insert({
         user_id: userId,
+        username,
+        avatar_url: avatarUrl,
         bg_image_url: imgRow.image_url,
         card_url: null,
         updated_at: new Date().toISOString(),

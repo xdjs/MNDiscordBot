@@ -1,6 +1,8 @@
 import { Client, GatewayIntentBits, ActivityType, REST, Routes } from 'discord.js';
 import { sessions, scheduleListenTimeout } from '../sessions/listen.js';
 import { getFunFact } from '../utils/openai.js';
+// Register Discord presence listener to handle track changes
+import { registerPresenceListener } from '../listeners/presenceUpdate.js';
 
 export interface ListenJobPayload {
   user_id: string;
@@ -11,6 +13,8 @@ export interface ListenJobPayload {
 // Singleton Discord client shared by this worker module
 let client: Client | undefined;
 let rest: REST | undefined;
+// Ensure we only attach the presence listener once
+let presenceListenerRegistered = false;
 
 function ensureClient(): Promise<void> {
   if (client && client.isReady()) return Promise.resolve();
@@ -19,11 +23,25 @@ function ensureClient(): Promise<void> {
     const token = process.env.DISCORD_BOT_TOKEN as string;
 
     if (!client) {
-      client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildPresences] });
+      client = new Client({
+        intents: [
+          GatewayIntentBits.Guilds,
+          GatewayIntentBits.GuildMembers,
+          GatewayIntentBits.GuildPresences,
+        ],
+      });
       client.login(token).catch((err) => console.error('[listen-worker] login failed', err));
     }
 
-    if (!rest) rest = new REST({ version: '10' }).setToken(token);
+    if (!rest) {
+      rest = new REST({ version: '10' }).setToken(token);
+    }
+
+    // Attach presence listener once the REST client is available
+    if (!presenceListenerRegistered && client && rest) {
+      registerPresenceListener(client, rest);
+      presenceListenerRegistered = true;
+    }
 
     if (client.isReady()) resolve();
     else client.once('ready', () => resolve());

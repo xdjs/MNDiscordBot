@@ -12,6 +12,10 @@ import { profile } from './commands/profile.js';
 import { image as imageCommand } from './commands/image.js';
 import { setimage } from './commands/setimage.js';
 import { disconnect } from './commands/disconnect.js';
+import { wrap as wrapCommand } from './commands/wrap.js';
+import { update as updateCommand } from './commands/update.js';
+import { buildWrapPayload } from '../src/utils/wrapPaginator.js';
+import { supabase } from './lib/supabase.js';
 
 const publicKey = process.env.DISCORD_PUBLIC_KEY!;
 
@@ -110,6 +114,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       case 'disconnect':
         response = await disconnect(callerId);
         break;
+      case 'wrap':
+        response = await wrapCommand(interaction.guild_id);
+        break;
+      case 'update':
+        response = await updateCommand(interaction.guild_id);
+        break;
       default:
         response = {
           type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
@@ -118,6 +128,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     return res.status(200).json(response);
+  }
+
+  if (interaction.type === InteractionType.MESSAGE_COMPONENT) {
+    const custom = interaction.data.custom_id as string;
+    if (custom.startsWith('wrap_prev_') || custom.startsWith('wrap_next_')) {
+      const direction = custom.startsWith('wrap_prev_') ? -1 : 1;
+      const current = parseInt(custom.split('_').pop() || '0', 10);
+      const newPage = current + direction;
+      const guildId = interaction.guild_id;
+
+      // Fetch latest wrap data
+      const { data } = await supabase
+        .from('user_tracks')
+        .select('user_id, top_track, top_artist')
+        .eq('guild_id', guildId);
+
+      const lines = Array.isArray(data)
+        ? data.map((row) => {
+            const userMention = `<@${row.user_id}>`;
+            return `${userMention} — 🎵 **Track:** ${row.top_track ?? 'N/A'} | 🎤 **Artist:** ${row.top_artist ?? 'N/A'}`;
+          })
+        : [];
+
+      const payload = buildWrapPayload(lines, newPage, 'Spotify Wrap');
+
+      return res.status(200).json({
+        type: InteractionResponseType.UPDATE_MESSAGE,
+        data: payload,
+      });
+    }
   }
 
   res.status(400).send('Unhandled interaction type');
