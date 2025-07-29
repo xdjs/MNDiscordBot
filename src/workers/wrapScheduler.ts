@@ -20,8 +20,18 @@ function msUntilNextTarget(): number {
 async function postWrapForGuild(guildId: string, client: Client, rest: REST) {
   try {
     const guild = await client.guilds.fetch(guildId);
-    // Attempt to use system channel, fallback to first text channel
-    let channelId = guild.systemChannelId ?? null;
+    // Preferred channel by name via env var
+    const preferredName = (process.env.WRAP_CHANNEL_NAME ?? 'wrap-up').toLowerCase();
+    let channelId: string | null = null;
+
+    const match = guild.channels.cache.find(
+      (c) => c.isTextBased() && (c as TextChannel).name.toLowerCase() === preferredName,
+    ) as TextChannel | undefined;
+
+    if (match && match.viewable) channelId = match.id;
+
+    // Fallback to system channel, then first readable text channel
+    if (!channelId) channelId = guild.systemChannelId ?? null;
     if (!channelId) {
       const firstText = guild.channels.cache.find((c) => c.isTextBased() && (c as TextChannel).viewable) as TextChannel | undefined;
       if (firstText) channelId = firstText.id;
