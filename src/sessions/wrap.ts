@@ -1,4 +1,5 @@
 import { supabase } from '../../api/lib/supabase.js';
+import { Client } from 'discord.js';
 
 export const wrapGuilds = new Set<string>();
 
@@ -36,17 +37,25 @@ export function isWrapped(guildId: string): boolean {
   return wrapGuilds.has(guildId);
 }
 
-export function subscribeWrapGuilds() {
+export function subscribeWrapGuilds(client: Client) {
   try {
     supabase
       .channel('wrap_guilds_channel')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'wrap_guilds' }, (payload) => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'wrap_guilds' }, async (payload) => {
         const row: any = payload.new ?? payload.old ?? {};
         const guild_id = row.guild_id as string | undefined;
         if (!guild_id) return;
         if (payload.eventType === 'INSERT') {
           wrapGuilds.add(guild_id);
           console.log(`[wrap] Realtime: guild ${guild_id} added (tracking on)`);
+          // Prefetch members to ensure presence updates arrive
+          try {
+            const guild = await client.guilds.fetch(guild_id);
+            await guild.members.fetch({ withPresences: true });
+            console.log('[wrap] Prefetched members for guild', guild_id);
+          } catch (err) {
+            console.error('[wrap] Failed to prefetch members for guild', guild_id, err);
+          }
         }
         if (payload.eventType === 'DELETE') {
           wrapGuilds.delete(guild_id);
