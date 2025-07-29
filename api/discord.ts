@@ -123,7 +123,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         response = await updateCommand(interaction.guild_id);
         break;
       case 'unwrap':
-        response = await unwrapCommand(interaction.guild_id);
+        response = await unwrapCommand(interaction);
         break;
       case 'settime':
         response = await settime(interaction);
