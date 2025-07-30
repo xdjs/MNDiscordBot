@@ -13,7 +13,7 @@ export function registerPresenceListener(client: Client, rest: REST) {
     // ---- Spotify Wrap tracking (runs for every presence) ----
     if (guildId && isWrapped(guildId)) {
       const spot = newPresence.activities.find(
-        (a) => a.type === ActivityType.Listening && a.name === 'Spotify',
+        (a) => a.type === ActivityType.Listening && (a.name === 'Spotify' || /apple music|itunes/i.test(a.name)),
       );
       if (spot) {
         console.log(`[presence-wrap] Guild ${guildId} | User ${userId} | New presence update detected`);
@@ -29,7 +29,7 @@ export function registerPresenceListener(client: Client, rest: REST) {
         const artistDisplay = artistNames.join(', ') || 'Unknown artist';
         console.log('[presence-wrap] artists parsed:', artistDisplay);
 
-        if (trackId) {
+        {
           try {
             const { data: existing } = await supabase
               .from('user_tracks')
@@ -56,7 +56,10 @@ export function registerPresenceListener(client: Client, rest: REST) {
             const lastEntry = tracksArr[tracksArr.length - 1];
             const isDuplicate =
               lastEntry &&
-              lastEntry.id === trackId &&
+              (
+                (trackId && lastEntry.id === trackId) ||
+                (!trackId && lastEntry.title?.toLowerCase() === trackTitle.toLowerCase())
+              ) &&
               // within 10 minutes window (safety)
               new Date(lastEntry.ts).getTime() > now.getTime() - 10 * 60 * 1000;
 
@@ -101,7 +104,7 @@ export function registerPresenceListener(client: Client, rest: REST) {
     if (!session) return;
 
     const spotifyAct = newPresence.activities.find(
-      (a) => a.type === ActivityType.Listening && a.name === 'Spotify',
+      (a) => a.type === ActivityType.Listening && (a.name === 'Spotify' || /apple music|itunes/i.test(a.name)),
     );
 
     // Reset inactivity timer if still listening
