@@ -19,7 +19,11 @@ export async function help(userId: string) {
   \n/listen start user<username> - Give you fun facts about the artist that user is listening to. (has to have Spotify status enabled).
   \n/listen start user<bot> - Give you fun facts about the artist that the music bot is playing.
   \n/listen start dm:(true/false) - true = send the facts to your DMs, false = send the facts to the serverchannel.(like a switch)
-  \n/listen end (@user) - force ends the listening session.`;
+  \n/listen end (@user) - force ends the listening session.
+  \n\n
+  \n/wrap - The bot will start listening to the spotify status of all users in a server and post daily wrap ups as 11:50pm (set your local time using /setime).
+  \n/unwrap - The bot will stop listening to the spotify status of all users in a server and stop posting daily wrap ups (only admins can use this).
+  \nsetime - enter your localtime so that the bot posts the wrap up at the correct time`;
   
   // Create (or fetch existing) DM channel with the user
   const dmRes = await fetch('https://discord.com/api/v10/users/@me/channels', {

@@ -85,9 +85,37 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Simple success page
-    return res.send(
-      '<html><body style="font-family:sans-serif;text-align:center;padding-top:40px">✅ Spotify linked! You can close this tab.<script>window.close()</script></body></html>',
-    );
+    return res.send(`<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Spotify linked</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        text-align: center;
+        padding-top: 40px;
+        background: #121212;
+        color: #fff;
+      }
+      .btn {
+        margin-top: 24px;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 4px;
+        background: #1DB954;
+        color: #fff;
+        font-size: 16px;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>✅ Spotify linked!</h1>
+    <p>You can now return to Discord.</p>
+    <button class="btn" onclick="window.close()">Close this tab</button>
+  </body>
+</html>`);
   } catch (err) {
     console.error('[spotify/callback] error', err);
     return res.status(500).send('Internal server error');
