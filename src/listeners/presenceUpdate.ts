@@ -124,7 +124,6 @@ export function registerPresenceListener(client: Client, rest: REST) {
     console.log('[presence] artistText normalized:', artistText, 'user', userId);
 
     session.lastTrackId = trackIdentifier;
-    session.factCount += 1;
 
     const trackTitle = spotifyAct.details || undefined;
     const fact = await getFunFact(artistText, trackTitle);
@@ -140,9 +139,6 @@ export function registerPresenceListener(client: Client, rest: REST) {
       console.error('Failed to post fun fact', err);
     }
 
-    if (session.factCount >= 10) {
-      if (session.timeout) clearTimeout(session.timeout);
-      sessions.delete(userId);
-    }
+
   });
 } 
