@@ -11,7 +11,8 @@
     "vercel-build": "node scripts/registerCommands.js && mkdir -p public && echo 'placeholder' > public/.vercelkeep",
     "register:commands": "node scripts/registerCommands.js",
     "tests": "jest",
-    "tests:watch": "jest --watch"
+    "tests:watch": "jest --watch",
+    "server-search": "node scripts/serverSearch.js"
   },
   "dependencies": {
     "discord.js": "^14.13.0",

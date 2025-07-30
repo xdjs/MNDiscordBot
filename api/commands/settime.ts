@@ -11,6 +11,20 @@ export async function settime(interaction: any) {
   const userId = userObj.id as string;
   const guildId = interaction.guild_id as string | undefined;
 
+  // Ensure caller has Administrator permission (same gate as /unwrap)
+  const ADMIN_FLAG = 0x8n;
+  const permStr: string | undefined = interaction.member?.permissions;
+  const hasAdmin = permStr ? (BigInt(permStr) & ADMIN_FLAG) === ADMIN_FLAG : false;
+  if (!hasAdmin) {
+    return {
+      type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+      data: {
+        content: '🚫 Only server administrators can configure the wrap-up posting time.',
+        flags: 64,
+      },
+    };
+  }
+
   // Expect an option called "time" with format HH:MM
   const timeOption = Array.isArray(interaction.data?.options) && interaction.data.options.length
     ? (interaction.data.options[0] as any)
