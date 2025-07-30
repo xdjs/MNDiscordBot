@@ -72,11 +72,14 @@ export async function settime(interaction: any) {
 
   try {
     // Upsert into wrap_guilds so the scheduler has per-guild timing information
-    await supabase.from('wrap_guilds').upsert({
-      guild_id: guildId,
-      local_time: utcPostSqlTime,
-      updated_at: new Date().toISOString(),
-    });
+    await supabase.from('wrap_guilds').upsert(
+      {
+        guild_id: guildId,
+        local_time: utcPostSqlTime,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'guild_id' },
+    );
   } catch (err) {
     console.error('[settime] DB error', err);
     return {
