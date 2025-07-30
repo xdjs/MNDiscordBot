@@ -3,6 +3,29 @@ import { supabase } from '../../api/lib/supabase.js';
 import { wrapGuilds } from '../sessions/wrap.js';
 import { buildWrapPayload } from '../utils/wrapPaginator.js';
 
+// -----------------------------------------------
+// Summary prompt selector based on user count
+// -----------------------------------------------
+async function pickSummaryPrompt(count: number): Promise<string> {
+  const { data, error } = await supabase
+    .from('Summary_prompts')
+    .select('slow, moderate, busy')
+    .limit(1)
+    .single();
+
+  if (error || !data) return 'Daily Summary';
+
+  const pickRandom = (arr: any): string | undefined => {
+    if (!Array.isArray(arr) || arr.length === 0) return undefined;
+    return arr[Math.floor(Math.random() * arr.length)];
+  };
+
+  if (count <= 3) return pickRandom(data.slow) ?? 'Daily Summary';
+  if (count <= 8) return pickRandom(data.moderate) ?? 'Daily Summary';
+  return pickRandom(data.busy) ?? 'Daily Summary';
+}
+
+
 // ------------------------------------------------------------------------------------------------
 // Dynamic wrap-up scheduler:
 // Every minute, determine which guilds are due for their daily post based on the UTC time stored
@@ -40,12 +63,18 @@ async function postWrapForGuild(guildId: string, client: Client, rest: REST) {
 
     if (!Array.isArray(data) || !data.length) return;
 
-    const lines = data.map((row) => {
+        const userLines = data.map((row) => {
       const userMention = `<@${row.user_id}>`;
       return `${userMention} — 🎵 **Track:** ${row.top_track ?? 'N/A'} | 🎤 **Artist:** ${row.top_artist ?? 'N/A'}`;
     });
 
-    const payload = buildWrapPayload(lines, 0, 'Daily Spotify Wrap');
+        // Fetch a prompt based on number of users
+    const summaryPrompt = await pickSummaryPrompt(userLines.length);
+
+    // Build description: prompt on its own line, then blank, then list
+    const finalLines = [summaryPrompt, '', ...userLines];
+
+    const payload = buildWrapPayload(finalLines, 0, 'Daily Wrap');
 
     const msgRes: any = await rest.post(Routes.channelMessages(channelId), {
       body: payload,
