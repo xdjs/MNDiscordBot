@@ -76,7 +76,7 @@ export async function settime(interaction: any) {
       {
         guild_id: guildId,
         local_time: utcPostSqlTime,
-        updated_at: new Date().toISOString(),
+        started_at: new Date().toISOString(),
       }
     );
   } catch (err) {
