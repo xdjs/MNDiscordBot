@@ -76,9 +76,8 @@ export async function settime(interaction: any) {
       {
         guild_id: guildId,
         local_time: utcPostSqlTime,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'guild_id' },
+        started_at: new Date().toISOString(),
+      }
     );
   } catch (err) {
     console.error('[settime] DB error', err);
