@@ -17,7 +17,7 @@ export async function startWrap(guildId: string): Promise<boolean> {
   try {
     const { error } = await supabase
       .from('wrap_guilds')
-      .upsert({ guild_id: guildId }, { onConflict: 'guild_id' });
+      .upsert({ guild_id: guildId });
     if (error) {
       console.error('[wrap] upsert guild failed', error);
       return false;
