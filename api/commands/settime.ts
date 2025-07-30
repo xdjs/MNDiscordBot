@@ -3,8 +3,8 @@ import { supabase } from '../lib/supabase.js';
 
 /**
  * /settime command – allows a user to specify their local time (HH:MM 24-hour)
- * The bot stores this time string in the `local_time` column of the `user_tracks` table.
- * Later, the wrap-up scheduler can use this to figure out when to post a summary in the guild.
+ * The bot stores this time string in the `local_time` column of the `wrap_guilds` table.
+ * Later, the wrap-up scheduler reads that column to figure out when to post a summary in the guild.
  */
 export async function settime(interaction: any) {
   const userObj = interaction.member?.user ?? interaction.user;
@@ -57,6 +57,9 @@ export async function settime(interaction: any) {
   const postM = (utcPostMin % 60).toString().padStart(2, '0');
   const utcPostStr = `${postH}:${postM}`;
 
+  // Some databases expect the SQL TIME type to include seconds – include :00 for clarity
+  const utcPostSqlTime = `${postH}:${postM}:00`;
+
   if (!guildId) {
     return {
       type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
@@ -71,7 +74,7 @@ export async function settime(interaction: any) {
     // Upsert into wrap_guilds so the scheduler has per-guild timing information
     await supabase.from('wrap_guilds').upsert({
       guild_id: guildId,
-      local_time: utcPostStr,
+      local_time: utcPostSqlTime,
       updated_at: new Date().toISOString(),
     });
   } catch (err) {
