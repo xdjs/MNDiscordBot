@@ -1,27 +1,6 @@
 import 'dotenv/config';
 import { fetchArtistLinksByName, ArtistLinks } from '../services/artistLinks.js';
 
-async function generateGenericFactPrompt(artist: string, track?: string): Promise<string> {
-  const base = track
-    ? `Give me a true, lesser-known fun fact about the song "${track}" OR its credited artist(s) (${artist}). `
-    : `Give me a true, lesser-known fun fact about the artist ${artist}. `;
-
-  const prompt =
-    base +
-    'Limit to 150 characters and cite the source or context in parentheses. Do NOT fabricate information.';
-
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-    },
-    body: JSON.stringify({ model: 'gpt-4o', messages: [{ role: 'user', content: prompt }], max_tokens: 60, temperature: 0.7 }),
-  });
-  const json = (await res.json()) as any;
-  return json.choices?.[0]?.message?.content?.trim() || `${artist} is cool!`;
-}
-
 export interface SongContext {
   track: string;
   artist: string;
