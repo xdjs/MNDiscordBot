@@ -74,7 +74,15 @@ async function postWrapForGuild(guildId: string, client: Client, rest: REST) {
     // Build description: prompt on its own line, then blank, then list
     const finalLines = [summaryPrompt, '', ...userLines];
 
-        const payload = buildWrapPayload(finalLines, 0, 'Daily Wrap', data.slice(0, 5));
+    // Choose accent colour based on crowd level
+    const RED = 0xed4245;
+    const YELLOW = 0xfaa61a;
+    const GREEN = 0x57f287;
+    let accent = GREEN;
+    if (userLines.length <= 3) accent = RED;
+    else if (userLines.length <= 8) accent = YELLOW;
+
+        const payload = buildWrapPayload(finalLines, 0, 'Daily Wrap', data.slice(0, 5), accent);
 
         const msgRes: any = await rest.post(Routes.channelMessages(channelId), {
       body: payload,
