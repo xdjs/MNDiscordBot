@@ -150,8 +150,14 @@ export function initWrapScheduler(client: Client, rest: REST) {
             ...new Set(
               data
                 .filter((r: any) => {
-                  const t = r.local_time as string | null | undefined;
-                  return (t ?? '23:50') === timeStr; // default to 23:50 UTC if not set
+                  const raw = (r.local_time as string | null | undefined) ?? '23:50';
+                  const target = raw.slice(0, 5); // ignore seconds if present
+                  const [hh, mm] = target.split(':').map(Number);
+                  const targetMinutes = hh * 60 + mm;
+                  const nowMinutes = now.getUTCHours() * 60 + now.getUTCMinutes();
+                  let diff = Math.abs(nowMinutes - targetMinutes);
+                  if (diff > 720) diff = 1440 - diff; // cross-midnight wrap-around
+                  return diff <= 5; // within 5-minute window
                 })
                 .map((r: any) => r.guild_id)
                 .filter(Boolean),
