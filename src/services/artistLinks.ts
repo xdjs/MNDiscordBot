@@ -13,10 +13,13 @@ export const altPool = new Pool({
 
 export interface ArtistLinks {
   id: string;
+  spotify?: string | null;
   youtube?: string | null;
+  tiktok?: string | null;
   x?: string | null;
   soundcloud?: string | null;
   instagram?: string | null;
+  bio?: string | null;
 }
 
 export interface ArtistLinksSkipped {
@@ -30,7 +33,7 @@ export interface ArtistLinksSkipped {
 export async function fetchArtistLinksByName(name: string): Promise<ArtistLinks | null> {
   try {
     const { rows } = await altPool.query<ArtistLinks>(
-      `SELECT id, spotify, youtube, tiktok, x, instagram
+      `SELECT id, spotify, youtube, tiktok, x, instagram, bio
        FROM artists
        WHERE name = $1
        LIMIT 1`,

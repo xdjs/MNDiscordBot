@@ -17,6 +17,7 @@ import { update as updateCommand } from './commands/update.js';
 import { unwrap as unwrapCommand } from './commands/unwrap.js';
 import { settime } from './commands/settime.js';
 import { buildWrapPayload } from '../src/utils/wrapPaginator.js';
+import { fetchArtistLinksByName } from '../src/services/artistLinks.js';
 import { supabase } from './lib/supabase.js';
 
 const publicKey = process.env.DISCORD_PUBLIC_KEY!;
@@ -152,18 +153,79 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .select('user_id, top_track, top_artist')
         .eq('guild_id', guildId);
 
-      const lines = Array.isArray(data)
+            const lines = Array.isArray(data)
         ? data.map((row) => {
             const userMention = `<@${row.user_id}>`;
             return `${userMention} — 🎵 **Track:** ${row.top_track ?? 'N/A'} | 🎤 **Artist:** ${row.top_artist ?? 'N/A'}`;
           })
         : [];
 
-      const payload = buildWrapPayload(lines, newPage, 'Spotify Wrap');
+      const userRowsPage = Array.isArray(data) ? data.slice(newPage * 5, newPage * 5 + 5) : [];
+      const payload = buildWrapPayload(lines, newPage, 'Daily Wrap', userRowsPage);
 
       return res.status(200).json({
         type: InteractionResponseType.UPDATE_MESSAGE,
         data: payload,
+      });
+    }
+
+    // -------- Numeric selection (1-5) --------
+    if (custom.startsWith('wrap_pick_')) {
+      const userId = custom.replace('wrap_pick_', '');
+
+      // Check age of message via Discord snowflake (first 42 bits are timestamp)
+      const snowflake = BigInt(interaction.message.id);
+      const discordEpoch = 1420070400000n;
+      const msgTimestamp = Number((snowflake >> 22n) + discordEpoch);
+      if (Date.now() - msgTimestamp > 60 * 60 * 1000) {
+        return res.status(200).json({
+          type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+          data: {
+            content: '⏰ This wrap summary has expired. Try again tomorrow!',
+            flags: 64, // EPHEMERAL
+          },
+        });
+      }
+
+      // Fetch artist for that user
+      const { data: row } = await supabase
+        .from('user_tracks')
+        .select('top_artist')
+        .eq('user_id', userId)
+        .eq('guild_id', interaction.guild_id)
+        .maybeSingle();
+
+      const artistName = row?.top_artist as string | undefined;
+      if (!artistName) {
+        return res.status(200).json({
+          type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+          data: {
+            content: `I don't have data for this user yet.`,
+            flags: 64,
+          },
+        });
+      }
+
+      const info = await fetchArtistLinksByName(artistName);
+
+      const baseUrl = process.env.BASE_URL || 'https://your-site.com';
+      let replyLines: string[] = [`**${artistName}**`];
+      if (info && !(info as any).skip) {
+        if (info.bio && info.bio.trim().length) {
+          replyLines.push(info.bio.trim());
+        } else {
+          replyLines.push(`This artist doesn't have a bio yet, but feel free to check them out: ${baseUrl}/artist/${info.id}`);
+        }
+      } else {
+        replyLines.push(`I couldn't find this artist in the database yet, feel free to add them: ${baseUrl}`);
+      }
+
+      return res.status(200).json({
+        type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+        data: {
+          content: replyLines.join('\n'),
+          flags: 64,
+        },
       });
     }
   }
