@@ -39,17 +39,13 @@ export function registerPresenceListener(client: Client, rest: REST) {
               .maybeSingle();
 
             const now = new Date();
-            const startOfDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 
             let tracksArr: any[] = [];
             let artistsArr: string[] = [];
 
             if (existing) {
-              const isNewDay = existing.last_updated && new Date(existing.last_updated) < startOfDay;
-              if (!isNewDay) {
-                if (Array.isArray(existing.tracks)) tracksArr = existing.tracks;
-                if (Array.isArray(existing.artists)) artistsArr = existing.artists;
-              }
+              if (Array.isArray(existing.tracks)) tracksArr = existing.tracks;
+              if (Array.isArray(existing.artists)) artistsArr = existing.artists;
             }
 
             // Avoid double-counting the same track when the user pauses and resumes.
@@ -91,6 +87,7 @@ export function registerPresenceListener(client: Client, rest: REST) {
               top_artist: topArtist,
               last_updated: now.toISOString(),
               // local_time column intentionally left untouched here; it's configured via /settime command
+              // Data now resets only when the wrap post is made, not at UTC midnight
             });
           } catch (err) {
             console.error('[wrap] failed to update user_tracks', err);

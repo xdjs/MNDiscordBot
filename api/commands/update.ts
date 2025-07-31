@@ -35,7 +35,7 @@ export async function update(guildId: string | undefined) {
     return `${userMention} — 🎵 **Track:** ${row.top_track ?? 'N/A'} | 🎤 **Artist:** ${row.top_artist ?? 'N/A'}`;
   });
 
-  const payload = buildWrapPayload(lines, 0, 'Current Spotify Wrap Standings');
+    const payload = buildWrapPayload(lines, 0, 'Current Wrap Standings', data.slice(0, 5));
 
   return {
     type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,

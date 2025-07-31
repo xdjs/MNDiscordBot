@@ -74,11 +74,32 @@ async function postWrapForGuild(guildId: string, client: Client, rest: REST) {
     // Build description: prompt on its own line, then blank, then list
     const finalLines = [summaryPrompt, '', ...userLines];
 
-    const payload = buildWrapPayload(finalLines, 0, 'Daily Wrap');
+        const payload = buildWrapPayload(finalLines, 0, 'Daily Wrap', data.slice(0, 5));
 
-    const msgRes: any = await rest.post(Routes.channelMessages(channelId), {
+        const msgRes: any = await rest.post(Routes.channelMessages(channelId), {
       body: payload,
     });
+
+    // Schedule edit after 1 hour to disable numeric buttons
+    setTimeout(async () => {
+      try {
+        // Clone components and disable num buttons (row index 1)
+        if (!payload.components) return;
+        const newComponents = payload.components.map((row: any, idx: number) => {
+          if (idx !== 1) return row;
+          return {
+            ...row,
+            components: row.components.map((c: any) => ({ ...c, disabled: true })),
+          };
+        });
+        await rest.patch(Routes.channelMessage(channelId, msgRes.id), {
+          body: { components: newComponents },
+        });
+      } catch (err) {
+        console.error('[wrapScheduler] failed to disable buttons for', msgRes.id, err);
+      }
+    }, 60 * 60 * 1000); // 1 hour
+
   } catch (err) {
     console.error('[wrapScheduler] failed to post wrap for guild', guildId, err);
   }
