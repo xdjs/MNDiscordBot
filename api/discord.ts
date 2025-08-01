@@ -213,6 +213,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (info && !(info as any).skip) {
         if (info.bio && info.bio.trim().length) {
           replyLines.push(info.bio.trim());
+          replyLines.push(`Check out this artist: ${baseUrl}/artist/${info.id}`);
         } else {
           replyLines.push(`This artist doesn't have a bio yet, but feel free to check them out: ${baseUrl}/artist/${info.id}`);
         }

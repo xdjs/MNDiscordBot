@@ -74,11 +74,26 @@ async function postWrapForGuild(guildId: string, client: Client, rest: REST) {
     // Build description: prompt on its own line, then blank, then list
     const finalLines = [summaryPrompt, '', ...userLines];
 
-        const payload = buildWrapPayload(finalLines, 0, 'Daily Wrap', data.slice(0, 5));
+    // Choose accent colour based on crowd level
+    const RED = 0xed4245;
+    const YELLOW = 0xfaa61a;
+    const GREEN = 0x57f287;
+    let accent = GREEN;
+    if (userLines.length <= 3) accent = RED;
+    else if (userLines.length <= 8) accent = YELLOW;
+
+        const payload = buildWrapPayload(finalLines, 0, 'Daily Wrap', data.slice(0, 5), accent);
 
         const msgRes: any = await rest.post(Routes.channelMessages(channelId), {
       body: payload,
     });
+
+    // Mark wrap as posted to prevent duplicates within the 5-minute leeway window
+    try {
+      await supabase.from('wrap_guilds').update({ posted: true }).eq('guild_id', guildId);
+    } catch (err) {
+      console.error('[wrapScheduler] failed to set posted flag for', guildId, err);
+    }
 
     // Schedule edit after 1 hour to disable numeric buttons
     setTimeout(async () => {
@@ -95,6 +110,8 @@ async function postWrapForGuild(guildId: string, client: Client, rest: REST) {
         await rest.patch(Routes.channelMessage(channelId, msgRes.id), {
           body: { components: newComponents },
         });
+        // After one hour, allow next day's wrap by resetting the posted flag
+        await supabase.from('wrap_guilds').update({ posted: false }).eq('guild_id', guildId);
       } catch (err) {
         console.error('[wrapScheduler] failed to disable buttons for', msgRes.id, err);
       }
@@ -135,7 +152,8 @@ export function initWrapScheduler(client: Client, rest: REST) {
         .padStart(2, '0')}`;
 
       // Fetch guilds whose configured posting time matches current UTC minute
-      const query = supabase.from('wrap_guilds').select('guild_id, local_time');
+      // fetch local_time and posted flag so we can suppress duplicate posts within the leeway window
+      const query = supabase.from('wrap_guilds').select('guild_id, local_time, posted');
 
       const { data, error } = await query;
 
@@ -157,6 +175,7 @@ export function initWrapScheduler(client: Client, rest: REST) {
                   const nowMinutes = now.getUTCHours() * 60 + now.getUTCMinutes();
                   let diff = Math.abs(nowMinutes - targetMinutes);
                   if (diff > 720) diff = 1440 - diff; // cross-midnight wrap-around
+                  if (r.posted) return false; // skip if wrap already posted within leeway window
                   return diff <= 5; // within 5-minute window
                 })
                 .map((r: any) => r.guild_id)
