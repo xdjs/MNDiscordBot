@@ -30,7 +30,7 @@ async function pickSummaryPrompt(count: number): Promise<string> {
 // Dynamic wrap-up scheduler:
 // Every minute, determine which guilds are due for their daily post based on the UTC time stored
 // in user_tracks.local_time (set via /settime). The stored value is a string "HH:MM" representing
-// the UTC clock-time when 23:50 local happens for that guild.
+// the UTC clock-time when 21:00 UTC (9 PM) happens for that guild.
 // ------------------------------------------------------------------------------------------------
 
 async function postWrapForGuild(guildId: string, client: Client, rest: REST) {
@@ -88,11 +88,11 @@ async function postWrapForGuild(guildId: string, client: Client, rest: REST) {
       body: payload,
     });
 
-    // Mark wrap as posted to prevent duplicates within the 5-minute leeway window
+    // Persist snapshot so pagination still works after daily reset
     try {
-      await supabase.from('wrap_guilds').update({ posted: true }).eq('guild_id', guildId);
+      await supabase.from('wrap_guilds').update({ posted: true, wrap_up: data }).eq('guild_id', guildId);
     } catch (err) {
-      console.error('[wrapScheduler] failed to set posted flag for', guildId, err);
+      console.error('[wrapScheduler] failed to set posted flag or wrap snapshot for', guildId, err);
     }
 
     // Schedule edit after 1 hour to disable numeric buttons
@@ -168,7 +168,7 @@ export function initWrapScheduler(client: Client, rest: REST) {
             ...new Set(
               data
                 .filter((r: any) => {
-                  const raw = (r.local_time as string | null | undefined) ?? '23:50';
+                  const raw = (r.local_time as string | null | undefined) ?? '21:00';
                   const target = raw.slice(0, 5); // ignore seconds if present
                   const [hh, mm] = target.split(':').map(Number);
                   const targetMinutes = hh * 60 + mm;
