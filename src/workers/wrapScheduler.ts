@@ -25,6 +25,23 @@ async function pickSummaryPrompt(count: number): Promise<string> {
   return pickRandom(data.busy) ?? 'Daily Summary';
 }
 
+// -----------------------------------------------
+// Shame title selector
+// -----------------------------------------------
+async function pickShameTitle(): Promise<string> {
+  const { data, error } = await supabase
+    .from('Summary_prompts')
+    .select('shaming')
+    .limit(1)
+    .single();
+
+  if (error || !data) return 'Did not listen today 😔';
+
+  const arr = (data.shaming as string[]) ?? [];
+  if (!Array.isArray(arr) || arr.length === 0) return 'Did not listen today 😔';
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
 
 // ------------------------------------------------------------------------------------------------
 // Dynamic wrap-up scheduler:
@@ -61,7 +78,13 @@ async function postWrapForGuild(guildId: string, client: Client, rest: REST) {
       .select('user_id, username, top_track, top_artist, last_updated')
       .eq('guild_id', guildId);
 
-    const rows = Array.isArray(data) ? data.filter((r) => r.top_track !== null || r.top_artist !== null) : [];
+    const rows = Array.isArray(data)
+      ? data.filter((r) => r.top_track !== null || r.top_artist !== null)
+      : [];
+    // Users with no listening data for the day – we'll "shame" them separately
+    const shameRows = Array.isArray(data)
+      ? data.filter((r) => r.top_track === null && r.top_artist === null)
+      : [];
     if (!rows.length) return;
 
         const userLines = rows.map((row) => {
@@ -91,9 +114,34 @@ async function postWrapForGuild(guildId: string, client: Client, rest: REST) {
       body: payload,
     });
 
+    // Post shame list for users with no listening data
+    if (shameRows.length) {
+      const shameTitle = await pickShameTitle();
+      const shameLines = shameRows.map((row) => {
+        const mention = `<@${row.user_id}>`;
+        const displayName = row.username ? `@${row.username}` : mention;
+        return displayName;
+      });
+      const shamePayload = {
+        embeds: [
+          {
+            title: shameTitle,
+            description: shameLines.join('\n') || '—',
+            color: 0x808080,
+          },
+        ],
+      } as any;
+      await rest.post(Routes.channelMessages(channelId), {
+        body: shamePayload,
+      });
+    }
+
     // Persist snapshot so pagination still works after daily reset
     try {
-      await supabase.from('wrap_guilds').update({ posted: true, wrap_up: rows }).eq('guild_id', guildId);
+      await supabase
+        .from('wrap_guilds')
+        .update({ posted: true, wrap_up: rows, shame: shameRows })
+        .eq('guild_id', guildId);
     } catch (err) {
       console.error('[wrapScheduler] failed to set posted flag or wrap snapshot for', guildId, err);
     }

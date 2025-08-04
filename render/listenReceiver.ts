@@ -5,7 +5,6 @@ import { Client as DiscordClient, GatewayIntentBits } from 'discord.js';
 
 // ---------- Route & listener registrations ----------
 import { registerListenHook } from '../src/routes/listenHook.js';
-import { registerChatHook } from '../src/routes/chatHook.js';
 import { registerMusicHook } from '../src/routes/musicHook.js';
 import { registerProfileHook } from '../src/routes/profileHook.js';
 import { registerImageHook } from '../src/routes/imageHook.js';
@@ -65,7 +64,6 @@ app.get('/_health', (_, res) => res.send('ok'));
 
 // Register routes
 registerListenHook(app, client, rest);
-registerChatHook(app, client);
 registerMusicHook(app);
 registerProfileHook(app);
 registerImageHook(app);
