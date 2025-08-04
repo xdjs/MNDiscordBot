@@ -27,13 +27,20 @@ export function buildWrapPayload(
   ): EmbedPayload {
   const totalPages = Math.max(1, Math.ceil(lines.length / PER_PAGE));
   const safePage = Math.min(Math.max(0, page), totalPages - 1);
+  // First two lines are summary prompt and a blank line; keep them on every page
+  const headerLines = lines.slice(0, 2);
+  const listLines = lines.slice(2);
+
   const sliceStart = safePage * PER_PAGE;
   const sliceEnd = sliceStart + PER_PAGE;
-  const slice = lines.slice(sliceStart, sliceEnd);
-  const userSlice = userRows.slice(0, PER_PAGE); // should already be <= PER_PAGE but guard
+  const slice = listLines.slice(sliceStart, sliceEnd);
+  const userSlice = userRows.slice(0, PER_PAGE); // already sliced by caller
 
   // Build description with an extra blank line between each user entry
   const descLines: string[] = [];
+  // Prepend header first
+  descLines.push(...headerLines);
+
   slice.forEach((line, idx) => {
     descLines.push(line);
     // Insert blank line between user rows (which start after index 1)
@@ -73,25 +80,25 @@ export function buildWrapPayload(
   // Selection row – label is artist name (or number fallback)
   const numRow = {
     type: 1,
-    components: Array.from({ length: PER_PAGE }).map((_, idx) => {
-      const rowMeta = userSlice[idx];
+    components: userSlice.map((rowMeta, idx) => {
       const artistLabel = rowMeta?.top_artist?.trim();
       const baseLabel = artistLabel && artistLabel.length
-        ? artistLabel.slice(0, 25) // Discord button label max 80; keep shorter for aesthetics
+        ? artistLabel.slice(0, 25)
         : String(idx + 1);
       return {
         type: 2,
         style: 2,
         label: baseLabel,
-        custom_id: rowMeta ? `wrap_pick_${rowMeta.user_id}` : `wrap_pick_disabled_${idx}`,
-        disabled: !rowMeta, // disable if no user in that slot
+        custom_id: `wrap_pick_${rowMeta.user_id}`,
       };
     }),
   };
 
   if (totalPages === 1) {
-    return { embeds: [embed], components: [navRow, numRow] };
+    // Single page – no navigation arrows needed
+    return { embeds: [embed], components: [numRow] };
   }
 
+  // Multiple pages – include arrow navigation row
   return { embeds: [embed], components: [navRow, numRow] };
 }

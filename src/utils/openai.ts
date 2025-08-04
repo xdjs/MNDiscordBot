@@ -1,5 +1,25 @@
 import 'dotenv/config';
 import { fetchArtistLinksByName, ArtistLinks } from '../services/artistLinks.js';
+import { supabase } from '../../api/lib/supabase.js';
+
+// Cache prompts so we don't query DB on every call
+let summaryPrompts: { fun_fact?: string | null; bot_fact?: string | null } | null = null;
+
+async function loadSummaryPrompts() {
+  if (summaryPrompts) return summaryPrompts;
+  try {
+    const { data } = await supabase
+      .from('Summary_prompts')
+      .select('fun_fact, bot_fact')
+      .limit(1)
+      .single();
+    summaryPrompts = data ?? {};
+  } catch (err) {
+    console.error('[openai] failed to load Summary_prompts', err);
+    summaryPrompts = {};
+  }
+  return summaryPrompts;
+}
 
 export interface SongContext {
   track: string;
@@ -49,7 +69,11 @@ export async function getFunFact(artist: string, track?: string): Promise<string
   let socialCtx = '';
   socialCtx = `Spotify profiles for the credited artist(s):\n${contextParts.map((p,i)=>`[${i+1}] ${p}`).join('\n')}\n\n`;
 
-  const basePrompt = track
+  // Use DB-provided prompt template if available
+  const { fun_fact } = await loadSummaryPrompts();
+  const basePrompt = fun_fact
+    ? fun_fact.replace('{artist}', artist).replace('{track}', track ?? '')
+    : track
     ? `Give me a true, lesser-known fun fact about the song "${track}"(it might be in a different language) OR its credited artist(s) (${artist})
     (If you cannot find anything about the song, then share a fun fact about the credited artist(s). 
     If you cannot find anything at all DO NOT SAY "If you have any other questions, feel free to ask!" AT THE END OF YOUR RESPONSE). `
@@ -118,11 +142,13 @@ export async function getFunFact(artist: string, track?: string): Promise<string
 export async function getSongFunFact(nowPlayingLine: string): Promise<string> {
   if (!OPENAI_API_KEY) return `${nowPlayingLine} sounds great!`;
 
-  const prompt =
-    `The following Discord message came from a music bot and announces what it is currently playing.\n` +
-    `Message: "${nowPlayingLine}"\n` +
-    `Extract the song (and artist if present) and give me one fun fact about that song in 1-2 sentences. ` +
-    `If you cannot identify the song, reply: I'm sorry but I couldn't find anything about that song.`;
+  const { bot_fact } = await loadSummaryPrompts();
+  const prompt = bot_fact
+    ? bot_fact.replace('{message}', nowPlayingLine)
+    : `The following Discord message came from a music bot and announces what it is currently playing.\n` +
+      `Message: "${nowPlayingLine}"\n` +
+      `Extract the song (and artist if present) and give me one fun fact about that song in 1-2 sentences. ` +
+      `If you cannot identify the song, reply: I'm sorry but I couldn't find anything about that song.`;
 
   try {
     const res = await fetch('https://api.openai.com/v1/chat/completions', {

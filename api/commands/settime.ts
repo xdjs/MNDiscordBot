@@ -59,8 +59,8 @@ export async function settime(interaction: any) {
   if (offsetMin < -720) offsetMin += 1440;
   if (offsetMin > 720) offsetMin -= 1440;
 
-  // Desired local posting time is 23:50 (11:50 PM local)
-  const localPostMin = 23 * 60 + 50;
+  // Desired local posting time is 21:00 (9:00 PM local)
+  const localPostMin = 21 * 60;
   // Corresponding UTC minute-of-day when we should post
   let utcPostMin = localPostMin - offsetMin;
   utcPostMin = ((utcPostMin % 1440) + 1440) % 1440; // wrap into 0-1439
@@ -104,7 +104,7 @@ export async function settime(interaction: any) {
   return {
     type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
     data: {
-      content: `✅ Got it! I'll post the daily wrap at 23:50 your time (which is ${utcPostStr} UTC).`,
+      content: `✅ Got it! I'll post the daily wrap at 21:00 your time (which is ${utcPostStr} UTC).`,
       flags: 64,
     },
   };

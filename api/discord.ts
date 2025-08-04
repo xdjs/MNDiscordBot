@@ -147,21 +147,41 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const newPage = current + direction;
       const guildId = interaction.guild_id;
 
-      // Fetch latest wrap data
-      const { data } = await supabase
-        .from('user_tracks')
-        .select('user_id, top_track, top_artist')
-        .eq('guild_id', guildId);
+      // Fetch latest wrap snapshot (falls back to user_tracks for legacy)
+      let data: any[] | null = null;
+      const snapRes = await supabase.from('wrap_guilds').select('wrap_up').eq('guild_id', guildId).maybeSingle();
+      if (snapRes.data?.wrap_up && Array.isArray(snapRes.data.wrap_up)) {
+        data = snapRes.data.wrap_up;
+      } else {
+        // Legacy fallback – happens if snapshot not stored yet
+        const res = await supabase
+          .from('user_tracks')
+          .select('user_id, top_track, top_artist')
+          .eq('guild_id', guildId);
+        data = res.data as any[];
+      }
 
-            const lines = Array.isArray(data)
-        ? data.map((row) => {
+      // Filter out rows where both top_track and top_artist are null
+      const rows = Array.isArray(data) ? data.filter((r) => r.top_track !== null || r.top_artist !== null) : [];
+
+            const lines = rows.map((row) => {
             const userMention = `<@${row.user_id}>`;
             return `${userMention} — 🎵 **Track:** ${row.top_track ?? 'N/A'} | 🎤 **Artist:** ${row.top_artist ?? 'N/A'}`;
-          })
-        : [];
+          });
 
-      const userRowsPage = Array.isArray(data) ? data.slice(newPage * 5, newPage * 5 + 5) : [];
-      const payload = buildWrapPayload(lines, newPage, 'Daily Wrap', userRowsPage);
+      const userRowsPage = rows.slice(newPage * 5, newPage * 5 + 5);
+
+      // Preserve the original summary prompt, blank line separator, and accent colour from the
+      // original embed so that every paginated view looks identical.
+      const origEmbed = (interaction as any).message?.embeds?.[0] as any | undefined;
+      const origDescLines = origEmbed?.description ? (origEmbed.description as string).split('\n') : [];
+      const headerLines = origDescLines.slice(0, 2); // summary prompt + blank line
+      const accent = origEmbed?.color;
+
+      // Build the full list with the preserved header so the summary is always present.
+      const allLines = [...headerLines, ...lines];
+
+      const payload = buildWrapPayload(allLines, newPage, 'Daily Wrap', userRowsPage, accent);
 
       return res.status(200).json({
         type: InteractionResponseType.UPDATE_MESSAGE,
@@ -187,15 +207,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
       }
 
-      // Fetch artist for that user
-      const { data: row } = await supabase
-        .from('user_tracks')
-        .select('top_artist')
-        .eq('user_id', userId)
-        .eq('guild_id', interaction.guild_id)
-        .maybeSingle();
-
-      const artistName = row?.top_artist as string | undefined;
+      // Fetch artist from snapshot first
+      let artistName: string | undefined;
+      const snap = await supabase.from('wrap_guilds').select('wrap_up').eq('guild_id', interaction.guild_id).maybeSingle();
+      if (snap.data?.wrap_up && Array.isArray(snap.data.wrap_up)) {
+        const match = snap.data.wrap_up.find((r: any) => r.user_id === userId);
+        artistName = match?.top_artist;
+      }
+      if (!artistName) {
+        const { data: row } = await supabase
+          .from('user_tracks')
+          .select('top_artist')
+          .eq('user_id', userId)
+          .eq('guild_id', interaction.guild_id)
+          .maybeSingle();
+        artistName = row?.top_artist as string | undefined;
+      }
       if (!artistName) {
         return res.status(200).json({
           type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
