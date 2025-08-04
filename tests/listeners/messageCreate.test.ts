@@ -16,23 +16,16 @@ jest.mock('discord.js', () => {
 
 jest.mock('../../src/utils/openai.js', () => ({
   getSongFunFact: jest.fn().mockResolvedValue('Fact!'),
-  getChatAnswer: jest.fn().mockResolvedValue('Answer!'),
 }));
 
 const musicSessionsMap = new Map<string, any>();
-const chatChannelsSet = new Set<string>();
 const scheduleMusicTimeoutMock = jest.fn();
-const scheduleChatTimeoutMock = jest.fn();
 
 jest.mock('../../src/sessions/music.js', () => ({
   musicSessions: musicSessionsMap,
   scheduleMusicTimeout: scheduleMusicTimeoutMock,
 }));
 
-jest.mock('../../src/sessions/chat.js', () => ({
-  chatChannels: chatChannelsSet,
-  scheduleChatTimeout: scheduleChatTimeoutMock,
-}));
 
 import { registerMessageListener } from '../../src/listeners/messageCreate.js';
 import { Client, REST } from 'discord.js';
@@ -44,24 +37,8 @@ describe('messageCreate listener', () => {
 
   beforeEach(() => {
     restPostMock.mockClear();
-    scheduleChatTimeoutMock.mockClear();
     scheduleMusicTimeoutMock.mockClear();
     (musicSessionsMap as any).clear();
-    chatChannelsSet.clear();
-  });
-
-  it('handles chat Q&A flow', async () => {
-    chatChannelsSet.add('chan1');
-    const msg = {
-      author: { id: 'user1', bot: false },
-      content: 'Hello?',
-      channel: { id: 'chan1', isTextBased: () => true, send: jest.fn() },
-      member: { presence: { activities: [] } },
-    } as any;
-
-    await client.emit('messageCreate', msg);
-    expect(scheduleChatTimeoutMock).toHaveBeenCalled();
-    expect(msg.channel.send).toHaveBeenCalledWith({ content: 'Answer!' });
   });
 
   it('handles music bot flow', async () => {

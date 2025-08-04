@@ -7,7 +7,6 @@ import { tracks } from './commands/tracks.js';
 import { listen } from './commands/listen.js';
 import { help } from './commands/help.js';
 import { endlisten } from './commands/endlisten.js';
-import { chat } from './commands/chat.js';
 import { profile } from './commands/profile.js';
 import { image as imageCommand } from './commands/image.js';
 import { setimage } from './commands/setimage.js';
@@ -101,9 +100,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
       case 'help':
         response = await help(callerId);
-        break;
-      case 'chat':
-        response = await chat(interaction.guild_id, interaction.channel_id);
         break;
       case 'profile':
         response = await profile(interaction);

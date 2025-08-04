@@ -65,8 +65,10 @@ async function postWrapForGuild(guildId: string, client: Client, rest: REST) {
     if (!rows.length) return;
 
         const userLines = rows.map((row) => {
-      const userMention = `<@${row.user_id}>`;
-      return `${userMention} — 🎵 **Track:** ${row.top_track ?? 'N/A'} | 🎤 **Artist:** ${row.top_artist ?? 'N/A'}`;
+      // Prefer a real username fallback in case mention fails to resolve (user left guild or mention suppression)
+      const mention = `<@${row.user_id}>`;
+      const displayName = row.username ? `@${row.username}` : mention;
+      return `${displayName} — 🎵 **Track:** ${row.top_track ?? 'N/A'} | 🎤 **Artist:** ${row.top_artist ?? 'N/A'}`;
     });
 
         // Fetch a prompt based on number of users
