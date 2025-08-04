@@ -61,9 +61,10 @@ async function postWrapForGuild(guildId: string, client: Client, rest: REST) {
       .select('user_id, username, top_track, top_artist, last_updated')
       .eq('guild_id', guildId);
 
-    if (!Array.isArray(data) || !data.length) return;
+    const rows = Array.isArray(data) ? data.filter((r) => r.top_track !== null || r.top_artist !== null) : [];
+    if (!rows.length) return;
 
-        const userLines = data.map((row) => {
+        const userLines = rows.map((row) => {
       const userMention = `<@${row.user_id}>`;
       return `${userMention} — 🎵 **Track:** ${row.top_track ?? 'N/A'} | 🎤 **Artist:** ${row.top_artist ?? 'N/A'}`;
     });
@@ -82,7 +83,7 @@ async function postWrapForGuild(guildId: string, client: Client, rest: REST) {
     if (userLines.length <= 3) accent = RED;
     else if (userLines.length <= 8) accent = YELLOW;
 
-        const payload = buildWrapPayload(finalLines, 0, 'Daily Wrap', data.slice(0, 5), accent);
+        const payload = buildWrapPayload(finalLines, 0, 'Daily Wrap', rows.slice(0, 5), accent);
 
         const msgRes: any = await rest.post(Routes.channelMessages(channelId), {
       body: payload,
@@ -90,7 +91,7 @@ async function postWrapForGuild(guildId: string, client: Client, rest: REST) {
 
     // Persist snapshot so pagination still works after daily reset
     try {
-      await supabase.from('wrap_guilds').update({ posted: true, wrap_up: data }).eq('guild_id', guildId);
+      await supabase.from('wrap_guilds').update({ posted: true, wrap_up: rows }).eq('guild_id', guildId);
     } catch (err) {
       console.error('[wrapScheduler] failed to set posted flag or wrap snapshot for', guildId, err);
     }

@@ -161,15 +161,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         data = res.data as any[];
       }
 
-            const lines = Array.isArray(data)
-        ? data.map((row) => {
+      // Filter out rows where both top_track and top_artist are null
+      const rows = Array.isArray(data) ? data.filter((r) => r.top_track !== null || r.top_artist !== null) : [];
+
+            const lines = rows.map((row) => {
             const userMention = `<@${row.user_id}>`;
             return `${userMention} — 🎵 **Track:** ${row.top_track ?? 'N/A'} | 🎤 **Artist:** ${row.top_artist ?? 'N/A'}`;
-          })
-        : [];
+          });
 
-      const userRowsPage = Array.isArray(data) ? data.slice(newPage * 5, newPage * 5 + 5) : [];
-      const payload = buildWrapPayload(lines, newPage, 'Daily Wrap', userRowsPage);
+      const userRowsPage = rows.slice(newPage * 5, newPage * 5 + 5);
+
+      // Preserve the original summary prompt, blank line separator, and accent colour from the
+      // original embed so that every paginated view looks identical.
+      const origEmbed = (interaction as any).message?.embeds?.[0] as any | undefined;
+      const origDescLines = origEmbed?.description ? (origEmbed.description as string).split('\n') : [];
+      const headerLines = origDescLines.slice(0, 2); // summary prompt + blank line
+      const accent = origEmbed?.color;
+
+      // Build the full list with the preserved header so the summary is always present.
+      const allLines = [...headerLines, ...lines];
+
+      const payload = buildWrapPayload(allLines, newPage, 'Daily Wrap', userRowsPage, accent);
 
       return res.status(200).json({
         type: InteractionResponseType.UPDATE_MESSAGE,
