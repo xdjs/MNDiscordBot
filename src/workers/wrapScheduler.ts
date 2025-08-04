@@ -90,7 +90,7 @@ async function postWrapForGuild(guildId: string, client: Client, rest: REST) {
         const userLines = rows.map((row) => {
       // Prefer a real username fallback in case mention fails to resolve (user left guild or mention suppression)
       const mention = `<@${row.user_id}>`;
-      const displayName = row.username ? `@${row.username}` : mention;
+      const displayName = mention;
       return `${displayName} — 🎵 **Track:** ${row.top_track ?? 'N/A'} | 🎤 **Artist:** ${row.top_artist ?? 'N/A'}`;
     });
 
@@ -119,7 +119,7 @@ async function postWrapForGuild(guildId: string, client: Client, rest: REST) {
       const shameTitle = await pickShameTitle();
       const shameLines = shameRows.map((row) => {
         const mention = `<@${row.user_id}>`;
-        const displayName = row.username ? `@${row.username}` : mention;
+        const displayName = mention;
         return displayName;
       });
       const shamePayload = {
@@ -149,15 +149,16 @@ async function postWrapForGuild(guildId: string, client: Client, rest: REST) {
     // Schedule edit after 1 hour to disable numeric buttons
     setTimeout(async () => {
       try {
-        // Clone components and disable num buttons (row index 1)
+        // Remove numeric "bio" buttons (custom_id starts with wrap_pick_)
         if (!payload.components) return;
-        const newComponents = payload.components.map((row: any, idx: number) => {
-          if (idx !== 1) return row;
-          return {
-            ...row,
-            components: row.components.map((c: any) => ({ ...c, disabled: true })),
-          };
-        });
+        const newComponents = payload.components
+          .map((row: any) => {
+            const remaining = row.components?.filter(
+              (c: any) => !String(c.custom_id ?? '').startsWith('wrap_pick_'),
+            );
+            return { ...row, components: remaining };
+          })
+          .filter((row: any) => (row.components?.length ?? 0) > 0);
         await rest.patch(Routes.channelMessage(channelId, msgRes.id), {
           body: { components: newComponents },
         });
