@@ -36,7 +36,7 @@ export async function update(guildId: string | undefined) {
   // Simple ranking by order (could sort by something later)
   data.forEach((row, idx) => {
     const mention = `<@${row.user_id}>`;
-    trackLines.push(`${idx + 1}. ${mention} — ${row.top_track ?? 'N/A'}`);
+    trackLines.push(`${mention} — 🎵 **Track:** ${row.top_track ?? 'N/A'} by ${row.top_artist ?? 'Unknown'}`);
     artistLines.push(`${idx + 1}. ${mention} — ${row.top_artist ?? 'N/A'}`);
   });
 

@@ -61,21 +61,23 @@ export function registerPresenceListener(client: Client, rest: REST) {
               new Date(lastEntry.ts).getTime() > now.getTime() - 10 * 60 * 1000;
 
             if (!isDuplicate) {
-              tracksArr.push({ id: trackId ?? null, title: trackTitle, ts: now.toISOString() });
+              tracksArr.push({ id: trackId ?? null, title: trackTitle, artist: artistDisplay, ts: now.toISOString() });
               artistsArr.push(...artistNames);
             }
 
             // Calculate top values
-            const trackCount: Record<string, number> = {};
+            const trackStats: Record<string, { count: number; artist: string }> = {};
             for (const t of tracksArr) {
               const key = t.title ?? t.id ?? 'unknown';
-              trackCount[key] = (trackCount[key] ?? 0) + 1;
+              if (!trackStats[key]) trackStats[key] = { count: 0, artist: t.artist ?? 'Unknown' };
+              trackStats[key].count += 1;
             }
             const artistCount: Record<string, number> = {};
             for (const a of artistsArr) {
               artistCount[a] = (artistCount[a] ?? 0) + 1;
             }
-            const topTrack = Object.entries(trackCount).sort((a,b)=>b[1]-a[1])[0]?.[0] ?? null;
+            const topTrackEntry = Object.entries(trackStats).sort((a,b)=>b[1].count - a[1].count)[0];
+            const topTrack = topTrackEntry ? `${topTrackEntry[0]} — ${topTrackEntry[1].artist}` : null;
             const topArtist = Object.entries(artistCount).sort((a,b)=>b[1]-a[1])[0]?.[0] ?? null;
 
             await supabase.from('user_tracks').upsert({
