@@ -28,7 +28,7 @@ async function buffer(req: VercelRequest): Promise<Buffer> {
   }
   return Buffer.concat(chunks);
 }
-
+//Discord bot verification pings
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const rawBody = await buffer(req);
   const sig = req.headers['x-signature-ed25519'] as string | undefined;
@@ -54,6 +54,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // In DMs interaction.member is undefined; use interaction.user as fallback
     const callerId = interaction.member?.user?.id ?? interaction.user?.id;
 
+ //Switch case for all commands
     switch (name) {
       case 'connect':
         response = await connect(callerId);
@@ -185,7 +186,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    // -------- Numeric selection (1-5) --------
+    // --------5 buttons for the artists bio --------
     if (custom.startsWith('wrap_pick_')) {
       const userId = custom.replace('wrap_pick_', '');
 
@@ -193,7 +194,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const snowflake = BigInt(interaction.message.id);
       const discordEpoch = 1420070400000n;
       const msgTimestamp = Number((snowflake >> 22n) + discordEpoch);
-      if (Date.now() - msgTimestamp > 60 * 60 * 1000) {
+      if (Date.now() - msgTimestamp > 60 * 60 * 1000) {   //1 hour in milliseconds
         return res.status(200).json({
           type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
           data: {
@@ -231,6 +232,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const info = await fetchArtistLinksByName(artistName);
 
+      //----------Artist bio retrieval----------
       const baseUrl = process.env.BASE_URL || 'https://your-site.com';
       let replyLines: string[] = [`**${artistName}**`];
       if (info && !(info as any).skip) {

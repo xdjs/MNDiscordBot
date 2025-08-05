@@ -15,7 +15,7 @@ import { initWrapScheduler } from '../src/workers/wrapScheduler.js';
 import { loadWrapGuilds, subscribeWrapGuilds, wrapGuilds } from '../src/sessions/wrap.js';
 
 // All heavy logic now lives in modules under src/
-
+//more or less Legacy code 🔽🔽🔽
 const {
   PORT = '8080',
   DISCORD_BOT_TOKEN,

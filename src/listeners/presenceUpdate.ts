@@ -4,13 +4,14 @@ import { getFunFact } from '../utils/openai.js';
 import { isWrapped } from '../sessions/wrap.js';
 import { supabase } from '../../api/lib/supabase.js';
 
+//logs the presence update event of users in the guild
 export function registerPresenceListener(client: Client, rest: REST) {
   client.on('presenceUpdate', async (_oldPresence, newPresence) => {
     console.log('[presence] event received for user', newPresence.userId, 'guild', newPresence.guild?.id);
     const userId = newPresence.userId;
     const guildId = newPresence.guild?.id;
 
-    // ---- Spotify Wrap tracking (runs for every presence) ----
+    // ---- Spotify Wrap tracking (runs for every presence) and apple music ----
     if (guildId && isWrapped(guildId)) {
       const spot = newPresence.activities.find(
         (a) => a.type === ActivityType.Listening && (a.name === 'Spotify' || /apple music|itunes/i.test(a.name)),
@@ -21,7 +22,7 @@ export function registerPresenceListener(client: Client, rest: REST) {
         const trackTitle: string = spot.details || 'Unknown title';
         console.log('[presence-wrap] extracted trackId:', trackId, 'details', spot.details);
         const raw = spot.state || spot.assets?.largeText?.split(' – ')[0] || '';
-        const artistNames: string[] = raw
+        const artistNames: string[] = raw   //artist names are split by commas, semicolons, ampersands, and spaces
           .split(/[,;&]|\s+&\s+/)
           .map((s) => s.trim())
           .filter(Boolean);

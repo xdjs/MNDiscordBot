@@ -14,8 +14,8 @@ interface UserRowMeta {
 }
 
 /**
- * Build a wrap embed payload with arrow navigation (◀ ▶) and numeric pick buttons (1-5).
- * The numeric buttons use custom_id = `wrap_pick_<userId>` so the interaction handler
+ * Build a wrap embed payload with arrow navigation (◀ ▶) and artist pick buttons.
+ * The artist buttons use custom_id = `wrap_pick_<userId>` so the interaction handler
  * can look up the artist info for that user in the DB.
  */
 export function buildWrapPayload(

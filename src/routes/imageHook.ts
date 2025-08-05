@@ -82,7 +82,7 @@ export function registerImageHook(app: Express) {
               .eq('user_id', userId);
             topRes = await fetchTopTracks(accessToken);
           } catch {
-            /* ignore */
+            /* ignore, its to swallow any exceptions*/
           }
         }
 
@@ -127,6 +127,8 @@ export function registerImageHook(app: Express) {
         const tracksArray: string[] = json.items.map(
           (t: any, i: number) => `${i + 1}. ${t.name} – ${t.artists.map((a: any) => a.name).join(', ')}`,
         );
+
+        //prompt for image generation (thinking of switching it to db for dynamic changing)
         const prompt =
           `Create a cohesive, high-quality WIDE banner image (approx 3-4:1 aspect) that could be used as the background of a small profile card. ` +
           `It should depict a person in their room listening to music that evokes the following track list:\n` +
@@ -169,7 +171,7 @@ export function registerImageHook(app: Express) {
           const newFileName = `${userId}-${timestamp}.png`;
           const filePath = `${folder}/${newFileName}`;
 
-          await supabase.storage
+          await supabase.storage  //upload the image to supabase storage (bucket)
             .from('track-images')
             .upload(filePath, buf, { upsert: false, contentType: 'image/png' });
 

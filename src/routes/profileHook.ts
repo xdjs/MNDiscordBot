@@ -1,5 +1,4 @@
 import { Express } from 'express';
-import { Canvas, loadImage } from 'skia-canvas';
 import { supabase } from '../../api/lib/supabase.js';
 import { patchOriginal } from '../utils/discord.js';
 import { existsSync } from 'node:fs';
@@ -13,6 +12,7 @@ interface ProfileHookBody {
   interaction_token?: string;
 }
 
+//register the profile hook (possible to remove)
 export function registerProfileHook(app: Express) {
   app.post('/profile-hook', (req, res) => {
     console.log('[profile-hook] hit', new Date().toISOString());
@@ -25,11 +25,6 @@ export function registerProfileHook(app: Express) {
       interaction_token: token,
     } = req.body as ProfileHookBody;
 
-    // Optional shared-secret check
-    const secret = process.env.PROFILE_HOOK_SECRET;
-    if (secret && req.get('x-profile-signature') !== secret) {
-      return res.status(401).json({ error: 'unauthorized' });
-    }
 
     if (!userId || !appId || !token) {
       return res.status(400).json({ error: 'Missing required fields' });
@@ -43,7 +38,6 @@ export function registerProfileHook(app: Express) {
       const avatarUrl = `https://cdn.discordapp.com/avatars/${userId}/${avatar}.png?size=256`;
 
       let bgUrl: string | null = null;
-      let bgImg: any = null;
       try {
         const { data: existing } = await supabase
           .from('profiles')
@@ -132,7 +126,7 @@ export function registerProfileHook(app: Express) {
 
         (async () => {
           try {
-            await supabase.from('profiles').upsert({
+            await supabase.from('profiles').upsert({    //adds the profile to the database
               user_id: userId,
               username: username ?? '',
               avatar_url: avatarUrl,

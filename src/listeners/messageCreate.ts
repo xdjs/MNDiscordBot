@@ -14,16 +14,8 @@ export function registerMessageListener(client: Client, rest: REST) {
         const nowPlayingLine = npMatch[1].trim();
         const fact = await getSongFunFact(nowPlayingLine);
 
-        musicSession.factCount += 1;
-        scheduleMusicTimeout(message.channel.id);
-
-        if (musicSession.factCount >= 3) {
-          if (musicSession.timeout) clearTimeout(musicSession.timeout);
-          musicSessions.delete(message.channel.id);
-          console.log(`Music session for ${message.channel.id} closed after 3 fun facts.`);
-        }
-
-        // Prefer voice channel of bot if available
+       
+        // Prefer voice channel of bot if available (The text channle of voice channel)
         let destChannelId = message.channel.id;
         if (message.guild) {
           try {

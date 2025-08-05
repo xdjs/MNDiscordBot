@@ -11,6 +11,8 @@ export const altPool = new Pool({
   idleTimeoutMillis: 1_000,
 });
 
+
+//retrieves the artist links from the MN database
 export interface ArtistLinks {
   id: string;
   spotify?: string | null;

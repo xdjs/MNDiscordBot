@@ -5,6 +5,8 @@ import { supabase } from '../../api/lib/supabase.js';
 // Cache prompts so we don't query DB on every call
 let summaryPrompts: { fun_fact?: string | null; bot_fact?: string | null } | null = null;
 
+
+//pulls prompt from the database
 async function loadSummaryPrompts() {
   if (summaryPrompts) return summaryPrompts;
   try {
@@ -171,39 +173,5 @@ export async function getSongFunFact(nowPlayingLine: string): Promise<string> {
   } catch (err) {
     console.error('OpenAI song fact error', err);
     return `${nowPlayingLine} sounds great!`;
-  }
-}
-
-// General chat answer helper, with optional current song context
-export async function getChatAnswer(question: string, song?: SongContext): Promise<string> {
-  if (!OPENAI_API_KEY) return "I'm offline right now. Try again later!";
-
-  let prompt = `You are a helpful assistant in a Discord channel.`;
-  if (song) {
-    prompt += ` The user is currently listening to the song \"${song.track}\" by \"${song.artist}\". Use this information as context when relevant.`;
-  }
-  prompt += ` Answer the following question concisely and helpfully. Question: ${question}`;
-
-  try {
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-3.5-turbo',
-        messages: [{ role: 'user', content: prompt }],
-        max_tokens: 200,
-        temperature: 0.7,
-      }),
-    });
-
-    const json = (await res.json()) as any;
-    const answer = json.choices?.[0]?.message?.content?.trim();
-    return answer || "I'm not sure.";
-  } catch (err) {
-    console.error('OpenAI chat error', err);
-    return "Something went wrong.";
   }
 }
