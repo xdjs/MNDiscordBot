@@ -10,19 +10,26 @@ let readyPromise: Promise<void> | undefined;
 function ensureClient(): Promise<void> {
   if (client && client.isReady()) return Promise.resolve();
   if (!readyPromise) {
-    readyPromise = new Promise((resolve, reject) => {
+    readyPromise = new Promise(async (resolve, reject) => {
       const token = process.env.DISCORD_BOT_TOKEN;
       if (!token) return reject(new Error('DISCORD_BOT_TOKEN missing'));
 
       if (!client) {
         client = new Client({
-          intents: [
-            GatewayIntentBits.Guilds,
-            GatewayIntentBits.GuildMembers,
-            GatewayIntentBits.GuildPresences,
-          ],
-        });
-        client.login(token).catch(reject);
+        intents: [
+          GatewayIntentBits.Guilds,
+          GatewayIntentBits.GuildMembers,
+          GatewayIntentBits.GuildPresences,
+        ],
+      });
+      try {
+        const res = client.login(token);
+        if (res && typeof (res as any).then === 'function') {
+          await res.catch(reject);
+        }
+      } catch (err) {
+        reject(err);
+      }
       }
 
       if (client.isReady()) resolve();

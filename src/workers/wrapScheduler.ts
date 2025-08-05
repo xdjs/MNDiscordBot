@@ -122,7 +122,8 @@ async function postWrapForGuild(guildId: string, client: Client, rest: REST) {
         }
       });
     });
-    const trackPayload = buildWrapPayload(finalTrackLines, 0, 'Daily Top Tracks', rows.slice(0, 5), accent);
+    const trackUserRows = rows.slice(0, 5).map((r) => ({ ...r, top_artist: r.top_track }));
+    const trackPayload = buildWrapPayload(finalTrackLines, 0, 'Daily Top Tracks', trackUserRows, accent);
     // Rename button custom_ids to differentiate from artist bio buttons
     trackPayload.components?.forEach((row: any) => {
       row.components?.forEach((c: any) => {

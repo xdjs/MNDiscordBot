@@ -10,7 +10,7 @@ function ensureClient(): Promise<void> {
   if (client && client.isReady()) return Promise.resolve();
 
   if (!clientReady) {
-    clientReady = new Promise((resolve) => {
+    clientReady = new Promise(async (resolve) => {
       const token = process.env.DISCORD_BOT_TOKEN as string;
       if (!token) throw new Error('DISCORD_BOT_TOKEN missing');
 
@@ -22,9 +22,14 @@ function ensureClient(): Promise<void> {
             GatewayIntentBits.GuildPresences,
           ],
         });
-        client.login(token).catch((err) => {
+        try {
+          const res = client.login(token);
+          if (res && typeof (res as any).then === 'function') {
+            await res.catch((e: unknown) => console.error('[eavesdrop] client login failed', e));
+          }
+        } catch (err) {
           console.error('[eavesdrop] client login failed', err);
-        });
+        }
       }
 
       if (client.isReady()) resolve();

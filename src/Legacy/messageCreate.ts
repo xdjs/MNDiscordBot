@@ -1,6 +1,6 @@
 import { Client, Message, REST, Routes } from 'discord.js';
-import { musicSessions, scheduleMusicTimeout } from '../sessions/music.js';
-import { getSongFunFact } from '../utils/openai.js';
+import { musicSessions, scheduleMusicTimeout } from './musicSession.js';
+//import { getSongFunFact } from '../utils/openai.js';
 
 export function registerMessageListener(client: Client, rest: REST) {
   client.on('messageCreate', async (message: Message) => {
@@ -12,7 +12,7 @@ export function registerMessageListener(client: Client, rest: REST) {
       const npMatch = /now\s*playing[:]??\s*(.+)/i.exec(message.content);
       if (npMatch && npMatch[1]) {
         const nowPlayingLine = npMatch[1].trim();
-        const fact = await getSongFunFact(nowPlayingLine);
+        //const fact = await getSongFunFact(nowPlayingLine);
 
        
         // Prefer voice channel of bot if available (The text channle of voice channel)
@@ -28,7 +28,7 @@ export function registerMessageListener(client: Client, rest: REST) {
         }
 
         try {
-          await rest.post(Routes.channelMessages(destChannelId), { body: { content: `🎶 ${fact}` } });
+          //await rest.post(Routes.channelMessages(destChannelId), { body: { content: `🎶 ${fact}` } });
         } catch (err) {
           console.error('Failed to send song fact', err);
         }
