@@ -20,9 +20,27 @@ async function pickSummaryPrompt(count: number): Promise<string> {
     return arr[Math.floor(Math.random() * arr.length)];
   };
 
+  //selects a random prompt from the database (possibly move condition to db)
   if (count <= 3) return pickRandom(data.slow) ?? 'Daily Summary';
-  if (count <= 8) return pickRandom(data.moderate) ?? 'Daily Summary';
+  if (count < 8) return pickRandom(data.moderate) ?? 'Daily Summary';
   return pickRandom(data.busy) ?? 'Daily Summary';
+}
+
+// -----------------------------------------------
+// Shame title selector
+// -----------------------------------------------
+async function pickShameTitle(): Promise<string> {
+  const { data, error } = await supabase
+    .from('Summary_prompts')
+    .select('shaming')
+    .limit(1)
+    .single();
+
+  if (error || !data) return 'Did not listen today 😔';
+
+  const arr = (data.shaming as string[]) ?? [];
+  if (!Array.isArray(arr) || arr.length === 0) return 'Did not listen today 😔';
+  return arr[Math.floor(Math.random() * arr.length)];
 }
 
 
@@ -54,67 +72,112 @@ async function postWrapForGuild(guildId: string, client: Client, rest: REST) {
     }
     if (!channelId) return; // Cannot post
 
-    const startOfDay = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate()));
-
     const { data } = await supabase
       .from('user_tracks')
       .select('user_id, username, top_track, top_artist, last_updated')
       .eq('guild_id', guildId);
 
-    const rows = Array.isArray(data) ? data.filter((r) => r.top_track !== null || r.top_artist !== null) : [];
+    const rows = Array.isArray(data)
+      ? data.filter((r) => r.top_track !== null || r.top_artist !== null)
+      : [];
+    // Users with no listening data for the day – we'll "shame" them separately
+    const shameRows = Array.isArray(data)
+      ? data.filter((r) => r.top_track === null && r.top_artist === null)
+      : [];
     if (!rows.length) return;
 
-        const userLines = rows.map((row) => {
-      const userMention = `<@${row.user_id}>`;
-      return `${userMention} — 🎵 **Track:** ${row.top_track ?? 'N/A'} | 🎤 **Artist:** ${row.top_artist ?? 'N/A'}`;
+        // Build separate lists for artists and tracks
+    const artistLines = rows.map((row) => {
+      const mention = `<@${row.user_id}>`;
+      return `${mention} — 🎤 **Artist:** ${row.top_artist ?? 'N/A'}`;
     });
 
-        // Fetch a prompt based on number of users
-    const summaryPrompt = await pickSummaryPrompt(userLines.length);
+    const trackLines = rows.map((row) => {
+      const mention = `<@${row.user_id}>`;
+      return `${mention} — 🎵 **Track:** ${row.top_track ?? 'N/A'}`;
+    });
 
-    // Build description: prompt on its own line, then blank, then list
-    const finalLines = [summaryPrompt, '', ...userLines];
+    // Fetch a prompt based on number of users
+    const summaryPrompt = await pickSummaryPrompt(rows.length);
+
+    // Build description arrays: prompt, blank line, then list
+    const finalArtistLines = [summaryPrompt, '', ...artistLines];
+    const finalTrackLines = [summaryPrompt, '', ...trackLines];
 
     // Choose accent colour based on crowd level
     const RED = 0xed4245;
     const YELLOW = 0xfaa61a;
     const GREEN = 0x57f287;
     let accent = GREEN;
-    if (userLines.length <= 3) accent = RED;
-    else if (userLines.length <= 8) accent = YELLOW;
+    if (rows.length <= 3) accent = RED;
+    else if (rows.length < 8) accent = YELLOW;
 
-        const payload = buildWrapPayload(finalLines, 0, 'Daily Wrap', rows.slice(0, 5), accent);
-
-        const msgRes: any = await rest.post(Routes.channelMessages(channelId), {
-      body: payload,
+    // Build payloads
+    const artistPayload = buildWrapPayload(finalArtistLines, 0, 'Daily Top Artists', rows.slice(0, 5), accent);
+    // Append magnifying glass to artist button labels
+    artistPayload.components?.forEach((row: any) => {
+      row.components?.forEach((c: any) => {
+        if (typeof c.label === 'string' && !c.label.includes('🔎')) {
+          c.label = `${c.label} 🔎`;
+        }
+      });
     });
+    const trackPayload = buildWrapPayload(finalTrackLines, 0, 'Daily Top Tracks', rows.slice(0, 5), accent);
+    // Rename button custom_ids to differentiate from artist bio buttons
+    trackPayload.components?.forEach((row: any) => {
+      row.components?.forEach((c: any) => {
+        if (typeof c.custom_id === 'string' && c.custom_id.startsWith('wrap_pick_')) {
+                c.custom_id = c.custom_id.replace('wrap_pick_', 'wrap_track_');
+      if (typeof c.label === 'string' && !c.label.includes('🔎')) {
+        c.label = `${c.label} 🔎`;
+      }
+    }
+  });
+});
+
+    // Post both embeds (results no longer needed)
+    await rest.post(Routes.channelMessages(channelId), { body: artistPayload });
+    await rest.post(Routes.channelMessages(channelId), { body: trackPayload });
+
+    // Post shame list for users with no listening data
+    if (shameRows.length) {
+      const shameTitle = await pickShameTitle();
+      const shameLines = shameRows.map((row) => {
+        const mention = `<@${row.user_id}>`;
+        const displayName = mention;
+        return displayName;
+      });
+      const shamePayload = {
+        embeds: [
+          {
+            title: shameTitle,
+            description: shameLines.join('\n') || '—',
+            color: 0x808080,
+          },
+        ],
+      } as any;
+      await rest.post(Routes.channelMessages(channelId), {
+        body: shamePayload,
+      });
+    }
 
     // Persist snapshot so pagination still works after daily reset
     try {
-      await supabase.from('wrap_guilds').update({ posted: true, wrap_up: rows }).eq('guild_id', guildId);
+      await supabase
+        .from('wrap_guilds')
+        .update({ posted: true, wrap_up: rows, shame: shameRows })
+        .eq('guild_id', guildId);
     } catch (err) {
       console.error('[wrapScheduler] failed to set posted flag or wrap snapshot for', guildId, err);
     }
 
-    // Schedule edit after 1 hour to disable numeric buttons
+    // Schedule flag reset after 1 hour so the next day's wrap can post,
+    // but KEEP all artist bio buttons available indefinitely.
     setTimeout(async () => {
       try {
-        // Clone components and disable num buttons (row index 1)
-        if (!payload.components) return;
-        const newComponents = payload.components.map((row: any, idx: number) => {
-          if (idx !== 1) return row;
-          return {
-            ...row,
-            components: row.components.map((c: any) => ({ ...c, disabled: true })),
-          };
-        });
-        await rest.patch(Routes.channelMessage(channelId, msgRes.id), {
-          body: { components: newComponents },
-        });
-        // After one hour, allow next day's wrap by resetting the posted flag
         await supabase.from('wrap_guilds').update({ posted: false }).eq('guild_id', guildId);
       } catch (err) {
-        console.error('[wrapScheduler] failed to disable buttons for', msgRes.id, err);
+        console.error('[wrapScheduler] failed to reset posted flag for', guildId, err);
       }
     }, 60 * 60 * 1000); // 1 hour
 
@@ -134,13 +197,6 @@ async function resetDailyForGuild(guildId: string) {
   }
 }
 
-async function runDailyWrap(client: Client, rest: REST) {
-  console.log('[wrapScheduler] Running daily wrap job');
-  for (const gid of wrapGuilds) {
-    await postWrapForGuild(gid, client, rest);
-    await resetDailyForGuild(gid);
-  }
-}
 
 export function initWrapScheduler(client: Client, rest: REST) {
   console.log('[wrapScheduler] Initialising minute-ticker for wrap posts');
@@ -148,9 +204,7 @@ export function initWrapScheduler(client: Client, rest: REST) {
   setInterval(async () => {
     try {
       const now = new Date();
-      const timeStr = `${now.getUTCHours().toString().padStart(2, '0')}:${now.getUTCMinutes()
-        .toString()
-        .padStart(2, '0')}`;
+      
 
       // Fetch guilds whose configured posting time matches current UTC minute
       // fetch local_time and posted flag so we can suppress duplicate posts within the leeway window

@@ -9,6 +9,7 @@ interface StopHookBody {
   interaction_token?: string;
 }
 
+//register the command to force stop the listen session
 export function registerListenStopHook(app: Express, rest: REST) {
   app.post('/listen-stop', async (req, res) => {
     const { user_id: userId, channel_id: channelId } = req.body as StopHookBody;

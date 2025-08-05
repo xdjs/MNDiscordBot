@@ -7,13 +7,13 @@ export async function help(userId: string) {
   \n\n
   \nHere are the available commands:
   \n/help - Show this help message
-  \n/connect - Link your Spotify account
-  \n/disconnect - Unlink your Spotify account
-  \n/tracks - Get your top 10 Spotify tracks
-  \n/profile - Gets a custom profile card displayed in the channel.
-  \n/image - Generate a personalized picture of you listening to your top 10 Spotify tracks.
-  \n/setimage - Use your generated image as profile background.
-  \n/chat - Start a chat with the bot.(must have a text channel labeled "bot-chat")
+
+
+
+
+
+
+  
   \n/listen start - Give you fun facts about the artist you are listening to.
   \nTo make this work please connect Spotify to your Discord (Settings → Connections) and enable the \"Display current activity\" option.\nStart listening to a song and then type /listen to get fun facts about the artist.
   \n/listen start user<username> - Give you fun facts about the artist that user is listening to. (has to have Spotify status enabled).

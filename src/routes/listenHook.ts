@@ -34,6 +34,7 @@ export function registerListenHook(app: Express, client: DiscordClient, rest: RE
         (a) => a.type === ActivityType.Listening && a.name === 'Spotify'
       );
 
+      //checks for the spotify activity in users status
       if (!hasSpotify) {
         await rest.post(Routes.channelMessages(channelId), {
           body: {
@@ -80,7 +81,7 @@ export function registerListenHook(app: Express, client: DiscordClient, rest: RE
       });
 
       // Start inactivity timer
-      scheduleListenTimeout(userId, rest);
+      scheduleListenTimeout(userId, rest);  //defined in sessions/listen.ts
 
       res.json({ status: 'ok' });
     } catch (err) {

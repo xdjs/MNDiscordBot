@@ -4,6 +4,7 @@ import { musicSessions, scheduleMusicTimeout } from '../sessions/music.js';
 /**
  * Registers POST /music-hook endpoint on the provided Express app.
  * Tracks "now playing" messages coming from a specific music bot in the given channel.
+ * For /listen start @<music bot>
  */
 export function registerMusicHook(app: Express) {
   app.post('/music-hook', (req, res) => {

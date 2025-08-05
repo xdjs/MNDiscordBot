@@ -3,6 +3,8 @@ import { Client } from 'discord.js';
 
 export const wrapGuilds = new Set<string>();
 
+
+//loads the guilds that are wrapped from the database
 export async function loadWrapGuilds() {
   try {
     const { data } = await supabase.from('wrap_guilds').select('guild_id');
@@ -12,6 +14,7 @@ export async function loadWrapGuilds() {
   }
 }
 
+//adds the guild to the database for wrapped and starts listening for spotify activity
 export async function startWrap(guildId: string): Promise<boolean> {
   wrapGuilds.add(guildId);
   try {
@@ -35,10 +38,12 @@ export async function stopWrap(guildId: string): Promise<void> {
   await supabase.from('wrap_guilds').delete().eq('guild_id', guildId);
 }
 
+//checks the status of the guild in the database
 export function isWrapped(guildId: string): boolean {
   return wrapGuilds.has(guildId);
 }
 
+//initializes the realtime subscription for the wrap guilds
 export function subscribeWrapGuilds(client: Client) {
   try {
     supabase

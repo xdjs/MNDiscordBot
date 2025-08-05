@@ -11,7 +11,7 @@ By using the Bot you agree to the practices described below.  If you do not agre
 | Category | Examples | Purpose |
 |----------|----------|---------|
 | Discord identifiers | User ID, Username, Discriminator, Guild ID, Channel ID | Required for core functionality & message delivery |
-| Spotify information (optional) | Access token, refresh token, top track, top artist, listening activity | To provide listening summaries and other music-related features |
+| Listening activity | Public track and artist names from your Discord "Spotify" rich presence | To provide listening summaries and fun facts |
 | Commands & Messages | Slash-command interactions, message content you expressly send to the Bot (e.g. `/chat Question?`) | To generate requested responses |
 | Usage metadata | Timestamps, error logs | To monitor uptime and debug issues |
 
@@ -36,7 +36,7 @@ We do **not** sell or rent your data.  We may share it only:
 ## 5. Data Retention
 * **Listening data** (top track / artist) is automatically cleared each day after the daily wrap-up is generated.
 * **Snapshots** stored in the `wrap_up` column are retained for up to 24 hours to enable pagination, then deleted.
-* **Spotify tokens** are retained until you run `/disconnect` or 90 days of inactivity, whichever comes first.
+
 * Logs are stored for a maximum of 30 days.
 
 ## 6. Your Rights
@@ -46,8 +46,7 @@ Depending on your jurisdiction you may have rights to:
 * Withdraw consent.
 
 You can exercise these rights by:
-1. Running `/disconnect` in any Guild to delete your stored Spotify data and listening history.
-2. Removing the Bot from your Guild.
+1. Removing the Bot from your Guild or leaving it will delete any data associated with you automatically within 24 hours.
 3. Contacting us at **<avery.kwok05@yahoo.com>**.
 
 We will respond within 30 days.

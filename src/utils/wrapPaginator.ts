@@ -14,8 +14,8 @@ interface UserRowMeta {
 }
 
 /**
- * Build a wrap embed payload with arrow navigation (◀ ▶) and numeric pick buttons (1-5).
- * The numeric buttons use custom_id = `wrap_pick_<userId>` so the interaction handler
+ * Build a wrap embed payload with arrow navigation (◀ ▶) and artist pick buttons.
+ * The artist buttons use custom_id = `wrap_pick_<userId>` so the interaction handler
  * can look up the artist info for that user in the DB.
  */
 export function buildWrapPayload(
@@ -25,11 +25,13 @@ export function buildWrapPayload(
     userRows: UserRowMeta[], // rows corresponding to the *current page*
     accentColor?: number,
   ): EmbedPayload {
-  const totalPages = Math.max(1, Math.ceil(lines.length / PER_PAGE));
-  const safePage = Math.min(Math.max(0, page), totalPages - 1);
   // First two lines are summary prompt and a blank line; keep them on every page
   const headerLines = lines.slice(0, 2);
   const listLines = lines.slice(2);
+
+  // Calculate total pages based only on the list portion (exclude header lines)
+  const totalPages = Math.max(1, Math.ceil(listLines.length / PER_PAGE));
+  const safePage = Math.min(Math.max(0, page), totalPages - 1);
 
   const sliceStart = safePage * PER_PAGE;
   const sliceEnd = sliceStart + PER_PAGE;
