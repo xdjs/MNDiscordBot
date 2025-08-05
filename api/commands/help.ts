@@ -3,27 +3,19 @@ import { InteractionResponseType } from 'discord-interactions';
 const BOT_TOKEN = process.env.DISCORD_BOT_TOKEN!;
 
 export async function help(userId: string) {
-  const helpText = `For the best experience of this bot, please turn off message notification sounds in settings->notifications->message notifications->turn off.
+  const helpText = `For the best experience of this bot, turn on the Spotify status in your Discord status settings.
   \n\n
   \nHere are the available commands:
   \n/help - Show this help message
+  \n/nerdout - Get a fun fact about the song you\'re currently listening to (only visible to you).
+  \n/eavesdrop user<username> - See what track a user is currently playing (only you can see the result).
+  \nTo make this work please connect Spotify to your Discord (Settings → Connections) and enable the \"Display current activity\" option.\nStart playing a song and then type /nerdout to get a fun fact.
 
-
-
-
-
-
-  
-  \n/listen start - Give you fun facts about the artist you are listening to.
-  \nTo make this work please connect Spotify to your Discord (Settings → Connections) and enable the \"Display current activity\" option.\nStart listening to a song and then type /listen to get fun facts about the artist.
-  \n/listen start user<username> - Give you fun facts about the artist that user is listening to. (has to have Spotify status enabled).
-  \n/listen start user<bot> - Give you fun facts about the artist that the music bot is playing.
-  \n/listen start dm:(true/false) - true = send the facts to your DMs, false = send the facts to the serverchannel.(like a switch)
-  \n/listen end (@user) - force ends the listening session.
   \n\n
-  \n/wrap - The bot will start listening to the spotify status of all users in a server and post daily wrap ups as 11:50pm (set your local time using /setime).
+  \n**Admins only:**
+  \n/wrap - The bot will start listening to the spotify status of all users in a server and post daily wrap ups as 9:00pm (set your local time using /setime).
   \n/unwrap - The bot will stop listening to the spotify status of all users in a server and stop posting daily wrap ups (only admins can use this).
-  \nsetime - enter your localtime so that the bot posts the wrap up at the correct time`;
+  \n/setime - enter your localtime so that the bot posts the wrap up at the correct time (format: hh:mm, example: 21:00)`;
   
   // Create (or fetch existing) DM channel with the user
   const dmRes = await fetch('https://discord.com/api/v10/users/@me/channels', {

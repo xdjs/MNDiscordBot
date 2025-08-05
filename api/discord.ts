@@ -4,9 +4,11 @@ import 'dotenv/config';
 
 
 
-import { listen } from './commands/listen.js';
+
 import { help } from './commands/help.js';
-import { endlisten } from './commands/endlisten.js';
+import { eavesdrop } from './commands/eavesdrop.js';
+import { nerdout } from './commands/nerdout.js';
+
 
 
 
@@ -57,49 +59,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
  //Switch case for all commands
     switch (name) {
 
-      case 'listen': {
-        // For a sub-command based slash command, the first option contains the sub-command object.
-        const sub = Array.isArray(interaction.data.options) && interaction.data.options.length
-          ? (interaction.data.options[0] as any)
-          : null;
-
-        const subName = sub?.name ?? 'start';
-
-        if (subName === 'end') {
-          // Handle /listen end – terminate current listening session.
-          response = await endlisten(interaction);
-          break;
-        }
-
-        // Default to /listen start flow.
-        const opts = sub?.options ?? [];
-
-        let targetUserId = callerId;
-        let dmFlag: boolean | undefined = undefined;
-
-        if (Array.isArray(opts)) {
-          const userOpt = opts.find((o: any) => o.name === 'user');
-          if (userOpt && typeof userOpt.value === 'string') targetUserId = userOpt.value;
-
-          const dmOpt = opts.find((o: any) => o.name === 'dm');
-          if (dmOpt !== undefined) dmFlag = Boolean(dmOpt.value);
-        }
-
-        response = await listen(
-          targetUserId,
-          interaction.channel_id,
-          interaction.guild_id,
-          callerId,
-          dmFlag,
-        );
+      case 'nerdout':
+        response = await nerdout(interaction);
         break;
-      }
+
+      case 'eavesdrop':
+        response = await eavesdrop(interaction);
+        break;
       case 'help':
         response = await help(callerId);
         break;
 
       case 'wrap':
-        response = await wrapCommand(interaction.guild_id);
+        response = await wrapCommand(interaction);
         break;
       case 'update':
         response = await updateCommand(interaction.guild_id);
