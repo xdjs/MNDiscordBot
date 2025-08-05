@@ -2,15 +2,15 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { verifyKey, InteractionType, InteractionResponseType } from 'discord-interactions';
 import 'dotenv/config';
 
-import { connect } from './commands/connect.js';
-import { tracks } from './commands/tracks.js';
+
+
 import { listen } from './commands/listen.js';
 import { help } from './commands/help.js';
 import { endlisten } from './commands/endlisten.js';
-import { profile } from './commands/profile.js';
-import { image as imageCommand } from './commands/image.js';
-import { setimage } from './commands/setimage.js';
-import { disconnect } from './commands/disconnect.js';
+
+
+
+
 import { wrap as wrapCommand } from './commands/wrap.js';
 import { update as updateCommand } from './commands/update.js';
 import { unwrap as unwrapCommand } from './commands/unwrap.js';
@@ -56,12 +56,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
  //Switch case for all commands
     switch (name) {
-      case 'connect':
-        response = await connect(callerId);
-        break;
-      case 'tracks':
-        response = await tracks(callerId);
-        break;
+
       case 'listen': {
         // For a sub-command based slash command, the first option contains the sub-command object.
         const sub = Array.isArray(interaction.data.options) && interaction.data.options.length
@@ -102,18 +97,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       case 'help':
         response = await help(callerId);
         break;
-      case 'profile':
-        response = await profile(interaction);
-        break;
-      case 'image':
-        response = await imageCommand(interaction);
-        break;
-      case 'setimage':
-        response = await setimage(callerId);
-        break;
-      case 'disconnect':
-        response = await disconnect(callerId);
-        break;
+
       case 'wrap':
         response = await wrapCommand(interaction.guild_id);
         break;
@@ -178,7 +162,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // Build the full list with the preserved header so the summary is always present.
       const allLines = [...headerLines, ...lines];
 
-      const payload = buildWrapPayload(allLines, newPage, 'Daily Wrap', userRowsPage, accent);
+      const isTrackEmbed = origEmbed?.title?.includes('Top Tracks');
+      let payload = buildWrapPayload(allLines, newPage, origEmbed?.title ?? 'Daily Wrap', userRowsPage, accent);
+      if (isTrackEmbed) {
+        // convert button ids and labels for track facts
+        payload.components?.forEach((row: any) => {
+          row.components?.forEach((c: any) => {
+            if (typeof c.custom_id === 'string' && c.custom_id.startsWith('wrap_pick_')) {
+              c.custom_id = c.custom_id.replace('wrap_pick_', 'wrap_track_');
+            }
+            if (typeof c.label === 'string' && !c.label.includes('🔎')) {
+              c.label = `${c.label} 🔎`;
+            }
+          });
+        });
+      }
 
       return res.status(200).json({
         type: InteractionResponseType.UPDATE_MESSAGE,
@@ -190,19 +188,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (custom.startsWith('wrap_pick_')) {
       const userId = custom.replace('wrap_pick_', '');
 
-      // Check age of message via Discord snowflake (first 42 bits are timestamp)
-      const snowflake = BigInt(interaction.message.id);
-      const discordEpoch = 1420070400000n;
-      const msgTimestamp = Number((snowflake >> 22n) + discordEpoch);
-      if (Date.now() - msgTimestamp > 60 * 60 * 1000) {   //1 hour in milliseconds
-        return res.status(200).json({
-          type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-          data: {
-            content: '⏰ This wrap summary has expired. Try again tomorrow!',
-            flags: 64, // EPHEMERAL
-          },
-        });
-      }
+
 
       // Fetch artist from snapshot first
       let artistName: string | undefined;
@@ -246,12 +232,90 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         replyLines.push(`I couldn't find this artist in the database yet, feel free to add them: ${baseUrl}`);
       }
 
+            return res.status(200).json({
+         type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+         data: {
+           content: replyLines.join('\n'),
+           flags: 64,
+         },
+       });
+     }
+
+    // ---- Track fact buttons ----
+    if (custom.startsWith('wrap_track_')) {
+      const userId = custom.replace('wrap_track_', '');
+
+      // Fetch track & artist from snapshot first
+      let trackName: string | undefined;
+      let artistName: string | undefined;
+      const snap = await supabase
+        .from('wrap_guilds')
+        .select('wrap_up')
+        .eq('guild_id', interaction.guild_id)
+        .maybeSingle();
+      if (snap.data?.wrap_up && Array.isArray(snap.data.wrap_up)) {
+        const match = snap.data.wrap_up.find((r: any) => r.user_id === userId);
+        trackName = match?.top_track;
+        artistName = match?.top_artist;
+      }
+      if (!trackName) {
+        const { data: row } = await supabase
+          .from('user_tracks')
+          .select('top_track, top_artist')
+          .eq('user_id', userId)
+          .eq('guild_id', interaction.guild_id)
+          .maybeSingle();
+        trackName = row?.top_track as string | undefined;
+        artistName = row?.top_artist as string | undefined;
+      }
+      if (!trackName) {
+        return res.status(200).json({
+          type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+          data: { content: `I don't have data for this user's top track yet.`, flags: 64 },
+        });
+      }
+
+      // Load prompt template
+      let trackPrompt: string | null = null;
+      try {
+        const { data } = await supabase
+          .from('Summary_prompts')
+          .select('track_fact')
+          .limit(1)
+          .single();
+        trackPrompt = (data?.track_fact as string) ?? null;
+      } catch (err) {
+        console.error('[wrap_track] failed to load track_fact prompt', err);
+      }
+
+      let prompt: string;
+      if (trackPrompt) {
+        prompt = trackPrompt
+          .replace('{track}', trackName)
+          .replace('{artist}', artistName ?? '');
+      } else {
+        prompt = `Give me a true, lesser-known fun fact about the song "${trackName}"${artistName ? ` by ${artistName}` : ''}. Limit to 150 characters and cite the source in parentheses.`;
+      }
+
+      const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+      let fact = `${trackName} is awesome!`;
+      if (OPENAI_API_KEY) {
+        try {
+          const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${OPENAI_API_KEY}` },
+            body: JSON.stringify({ model: 'gpt-4o', messages: [{ role: 'user', content: prompt }], max_tokens: 60, temperature: 0.7 }),
+          });
+          const json = (await resp.json()) as any;
+          fact = json.choices?.[0]?.message?.content?.trim() || fact;
+        } catch (err) {
+          console.error('[wrap_track] OpenAI error', err);
+        }
+      }
+
       return res.status(200).json({
         type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-        data: {
-          content: replyLines.join('\n'),
-          flags: 64,
-        },
+        data: { content: fact, flags: 64 },
       });
     }
   }

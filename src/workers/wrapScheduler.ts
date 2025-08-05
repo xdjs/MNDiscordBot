@@ -86,32 +86,58 @@ async function postWrapForGuild(guildId: string, client: Client, rest: REST) {
       : [];
     if (!rows.length) return;
 
-        const userLines = rows.map((row) => {
-      // Prefer a real username fallback in case mention fails to resolve (user left guild or mention suppression)
+        // Build separate lists for artists and tracks
+    const artistLines = rows.map((row) => {
       const mention = `<@${row.user_id}>`;
-      const displayName = mention;
-      return `${displayName} — 🎵 **Track:** ${row.top_track ?? 'N/A'} | 🎤 **Artist:** ${row.top_artist ?? 'N/A'}`;
+      return `${mention} — 🎤 **Artist:** ${row.top_artist ?? 'N/A'}`;
     });
 
-        // Fetch a prompt based on number of users
-    const summaryPrompt = await pickSummaryPrompt(userLines.length);
+    const trackLines = rows.map((row) => {
+      const mention = `<@${row.user_id}>`;
+      return `${mention} — 🎵 **Track:** ${row.top_track ?? 'N/A'}`;
+    });
 
-    // Build description: prompt on its own line, then blank, then list
-    const finalLines = [summaryPrompt, '', ...userLines];
+    // Fetch a prompt based on number of users
+    const summaryPrompt = await pickSummaryPrompt(rows.length);
+
+    // Build description arrays: prompt, blank line, then list
+    const finalArtistLines = [summaryPrompt, '', ...artistLines];
+    const finalTrackLines = [summaryPrompt, '', ...trackLines];
 
     // Choose accent colour based on crowd level
     const RED = 0xed4245;
     const YELLOW = 0xfaa61a;
     const GREEN = 0x57f287;
     let accent = GREEN;
-    if (userLines.length <= 3) accent = RED;
-    else if (userLines.length < 8) accent = YELLOW;
+    if (rows.length <= 3) accent = RED;
+    else if (rows.length < 8) accent = YELLOW;
 
-        const payload = buildWrapPayload(finalLines, 0, 'Daily Wrap', rows.slice(0, 5), accent);
-
-        const msgRes: any = await rest.post(Routes.channelMessages(channelId), {
-      body: payload,
+    // Build payloads
+    const artistPayload = buildWrapPayload(finalArtistLines, 0, 'Daily Top Artists', rows.slice(0, 5), accent);
+    // Append magnifying glass to artist button labels
+    artistPayload.components?.forEach((row: any) => {
+      row.components?.forEach((c: any) => {
+        if (typeof c.label === 'string' && !c.label.includes('🔎')) {
+          c.label = `${c.label} 🔎`;
+        }
+      });
     });
+    const trackPayload = buildWrapPayload(finalTrackLines, 0, 'Daily Top Tracks', rows.slice(0, 5), accent);
+    // Rename button custom_ids to differentiate from artist bio buttons
+    trackPayload.components?.forEach((row: any) => {
+      row.components?.forEach((c: any) => {
+        if (typeof c.custom_id === 'string' && c.custom_id.startsWith('wrap_pick_')) {
+                c.custom_id = c.custom_id.replace('wrap_pick_', 'wrap_track_');
+      if (typeof c.label === 'string' && !c.label.includes('🔎')) {
+        c.label = `${c.label} 🔎`;
+      }
+    }
+  });
+});
+
+    // Post both embeds (results no longer needed)
+    await rest.post(Routes.channelMessages(channelId), { body: artistPayload });
+    await rest.post(Routes.channelMessages(channelId), { body: trackPayload });
 
     // Post shame list for users with no listening data
     if (shameRows.length) {
@@ -145,26 +171,13 @@ async function postWrapForGuild(guildId: string, client: Client, rest: REST) {
       console.error('[wrapScheduler] failed to set posted flag or wrap snapshot for', guildId, err);
     }
 
-    // Schedule edit after 1 hour to disable artist bio buttons
+    // Schedule flag reset after 1 hour so the next day's wrap can post,
+    // but KEEP all artist bio buttons available indefinitely.
     setTimeout(async () => {
       try {
-        // Remove numeric "bio" buttons (custom_id starts with wrap_pick_)
-        if (!payload.components) return;
-        const newComponents = payload.components
-          .map((row: any) => {
-            const remaining = row.components?.filter(
-              (c: any) => !String(c.custom_id ?? '').startsWith('wrap_pick_'),
-            );
-            return { ...row, components: remaining };
-          })
-          .filter((row: any) => (row.components?.length ?? 0) > 0);
-        await rest.patch(Routes.channelMessage(channelId, msgRes.id), {
-          body: { components: newComponents },
-        });
-        // After one hour, allow next day's wrap by resetting the posted flag
         await supabase.from('wrap_guilds').update({ posted: false }).eq('guild_id', guildId);
       } catch (err) {
-        console.error('[wrapScheduler] failed to disable buttons for', msgRes.id, err);
+        console.error('[wrapScheduler] failed to reset posted flag for', guildId, err);
       }
     }, 60 * 60 * 1000); // 1 hour
 

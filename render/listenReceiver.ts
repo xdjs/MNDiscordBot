@@ -6,8 +6,6 @@ import { Client as DiscordClient, GatewayIntentBits } from 'discord.js';
 // ---------- Route & listener registrations ----------
 import { registerListenHook } from '../src/routes/listenHook.js';
 import { registerMusicHook } from '../src/routes/musicHook.js';
-import { registerProfileHook } from '../src/routes/profileHook.js';
-import { registerImageHook } from '../src/routes/imageHook.js';
 import { registerListenStopHook } from '../src/routes/listenStopHook.js';
 import { registerPresenceListener } from '../src/listeners/presenceUpdate.js';
 import { registerMessageListener } from '../src/listeners/messageCreate.js';
@@ -65,15 +63,11 @@ app.get('/_health', (_, res) => res.send('ok'));
 // Register routes
 registerListenHook(app, client, rest);
 registerMusicHook(app);
-registerProfileHook(app);
-registerImageHook(app);
 registerListenStopHook(app, rest);
 
 // Register Discord listeners
 registerPresenceListener(client, rest);
 registerMessageListener(client, rest);
-
-// Inline image-hook and listeners removed – now modular
 
 app.get('/', (_, res) => {
   res.send('Listen Receiver up');
@@ -81,4 +75,4 @@ app.get('/', (_, res) => {
 
 app.listen(parseInt(PORT, 10), () => {
   console.log(`Listen receiver running on port ${PORT}`);
-}); 
+});

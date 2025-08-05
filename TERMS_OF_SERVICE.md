@@ -5,7 +5,7 @@ _Last updated: 2025-08-04_
 Welcome to **MNDiscordBot** ("the Service", "the Bot", "we", "us", or "our").  By inviting, installing, or otherwise using the Bot in your Discord server or direct messages (collectively, "Guilds"), **you agree to be bound by these Terms of Service** ("Terms").  If you do not agree with these Terms, do not use the Service.
 
 ## 1. Description of the Service
-MNDiscordBot is a hobby & open-source Discord integration that tracks users’ public Spotify listening activity, generates daily summary "wrap-ups", and provides music-related utilities (e.g. `/listen`, `/chat`, profile images).  The Service is provided free of charge on an "AS IS" basis.
+MNDiscordBot is a hobby & open-source Discord integration that tracks users’ public Spotify listening activity, generates daily summary "wrap-ups", and provides music-related utilities (e.g. `/listen`, `/chat`).  The Service is provided free of charge on an "AS IS" basis.
 
 ## 2. Eligibility
 You must be at least 13 years old—or the minimum age of digital consent in your country—to use Discord and this Service.  By using the Service you represent that you meet this requirement.
@@ -31,7 +31,7 @@ Use of the Bot is subject to our [Privacy Policy](./PRIVACY_POLICY.md), which de
 We may modify, suspend, or discontinue the Service at any time, with or without notice, including to perform maintenance or to address security concerns.
 
 ## 7. Termination
-You may cease using the Service at any time by removing the Bot from your Guild or, for user-specific data, by issuing the `/disconnect` command.  We may terminate or suspend your access to the Service immediately, without prior notice or liability, for any reason.
+You may cease using the Service at any time by removing the Bot from your Guild.  We may terminate or suspend your access to the Service immediately, without prior notice or liability, for any reason.
 
 ## 8. Disclaimer of Warranties
 THE SERVICE IS PROVIDED **“AS IS”** AND **“AS AVAILABLE.”**  WE MAKE NO WARRANTIES, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.

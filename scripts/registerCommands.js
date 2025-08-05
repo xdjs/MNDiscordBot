@@ -11,9 +11,9 @@ if (!token || !clientId) {
 
 // Define the slash-command payloads for this version of the bot
 const commands = [
-  new SlashCommandBuilder().setName('connect').setDescription('Link your Spotify account').setDMPermission(true),
-  new SlashCommandBuilder().setName('disconnect').setDescription('Unlink your Spotify account').setDMPermission(true),
-  new SlashCommandBuilder().setName('tracks').setDescription('Get your top 10 Spotify tracks').setDMPermission(true),
+
+
+
   // /listen start …  /listen end
   new SlashCommandBuilder()
     .setName('listen')
@@ -49,9 +49,9 @@ const commands = [
         ),
     ),
   new SlashCommandBuilder().setName('help').setDescription('Show help information').setDMPermission(true),
-  new SlashCommandBuilder().setName('profile').setDescription('Show your profile card').setDMPermission(true),
-  new SlashCommandBuilder().setName('image').setDescription('Generate art based on your top 10 Spotify tracks').setDMPermission(true),
-  new SlashCommandBuilder().setName('setimage').setDescription('Use your generated image as profile background').setDMPermission(true),
+
+
+
   new SlashCommandBuilder().setName('wrap').setDescription('Start daily Spotify wrap tracking for this server').setDMPermission(false),
   new SlashCommandBuilder().setName('update').setDescription('Show current wrap standings for this server').setDMPermission(false),
   new SlashCommandBuilder().setName('unwrap').setDescription('Stop daily Spotify wrap tracking for this server').setDMPermission(false),
