@@ -1,6 +1,5 @@
 import { InteractionResponseType } from 'discord-interactions';
 import { supabase } from '../lib/supabase.js';
-import { buildWrapPayload } from '../../src/utils/wrapPaginator.js';
 
 export async function update(guildId: string | undefined) {
   if (!guildId) {
@@ -30,17 +29,32 @@ export async function update(guildId: string | undefined) {
     };
   }
 
-  const lines = data.map((row) => {
-    const userMention = `<@${row.user_id}>`;
-    return `${userMention} — 🎵 **Track:** ${row.top_track ?? 'N/A'} | 🎤 **Artist:** ${row.top_artist ?? 'N/A'}`;
+  // Build two separate embed payloads — one for tracks, one for artists.
+  const trackLines: string[] = [];
+  const artistLines: string[] = [];
+
+  // Simple ranking by order (could sort by something later)
+  data.forEach((row, idx) => {
+    const mention = `<@${row.user_id}>`;
+    trackLines.push(`${idx + 1}. ${mention} — ${row.top_track ?? 'N/A'}`);
+    artistLines.push(`${idx + 1}. ${mention} — ${row.top_artist ?? 'N/A'}`);
   });
 
-    const payload = buildWrapPayload(lines, 0, 'Current Wrap Standings', data.slice(0, 5));
+  const embeds = [
+    {
+      title: 'Top Tracks Today',
+      description: trackLines.join('\n'),
+      color: 0x2f3136,
+    },
+    {
+      title: 'Top Artists Today',
+      description: artistLines.join('\n'),
+      color: 0x2f3136,
+    },
+  ];
 
   return {
     type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-    data: {
-      ...payload,
-    },
+    data: { embeds },
   };
 }
