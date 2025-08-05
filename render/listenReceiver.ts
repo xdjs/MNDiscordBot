@@ -4,20 +4,12 @@ import { REST } from 'discord.js';
 import { Client as DiscordClient, GatewayIntentBits } from 'discord.js';
 
 // ---------- Route & listener registrations ----------
-import { registerListenHook } from '../src/routes/listenHook.js';
-import { registerMusicHook } from '../src/routes/musicHook.js';
-import { registerListenStopHook } from '../src/routes/listenStopHook.js';
 import { registerPresenceListener } from '../src/listeners/presenceUpdate.js';
 import { registerMessageListener } from '../src/listeners/messageCreate.js';
 import { initWrapScheduler } from '../src/workers/wrapScheduler.js';
 import { loadWrapGuilds, subscribeWrapGuilds, wrapGuilds } from '../src/sessions/wrap.js';
 
-// All heavy logic now lives in modules under src/
-//more or less Legacy code 🔽🔽🔽
-const {
-  PORT = '8080',
-  DISCORD_BOT_TOKEN,
-} = process.env;
+const { PORT = '8080', DISCORD_BOT_TOKEN } = process.env;
 
 if (!DISCORD_BOT_TOKEN) {
   throw new Error('DISCORD_BOT_TOKEN is required');
@@ -37,19 +29,13 @@ const client = new DiscordClient({
 
 client.once('ready', async () => {
   console.log(`Discord presence client ready as ${client.user?.tag}`);
-  console.log('[debug] intents bitfield:', client.options.intents?.bitfield);
   await loadWrapGuilds();
-  // Prefetch members for existing guilds to ensure presence events flow
   for (const gid of wrapGuilds) {
     try {
       const g = await client.guilds.fetch(gid);
       await g.members.fetch({ withPresences: true });
-      console.log('[wrap] Prefetched members for guild', gid);
-    } catch (err) {
-      console.error('[wrap] Initial prefetch failed for guild', gid, err);
-    }
+    } catch {}
   }
-
   subscribeWrapGuilds(client);
   initWrapScheduler(client, rest);
 });
@@ -61,9 +47,6 @@ app.use(express.json());
 app.get('/_health', (_, res) => res.send('ok'));
 
 // Register routes
-registerListenHook(app, client, rest);
-registerMusicHook(app);
-registerListenStopHook(app, rest);
 
 // Register Discord listeners
 registerPresenceListener(client, rest);

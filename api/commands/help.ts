@@ -8,18 +8,14 @@ export async function help(userId: string) {
   \nHere are the available commands:
   \n/help - Show this help message
 
-
-
-
-
-
   
-  \n/listen start - Give you fun facts about the artist you are listening to.
-  \nTo make this work please connect Spotify to your Discord (Settings → Connections) and enable the \"Display current activity\" option.\nStart listening to a song and then type /listen to get fun facts about the artist.
-  \n/listen start user<username> - Give you fun facts about the artist that user is listening to. (has to have Spotify status enabled).
-  \n/listen start user<bot> - Give you fun facts about the artist that the music bot is playing.
-  \n/listen start dm:(true/false) - true = send the facts to your DMs, false = send the facts to the serverchannel.(like a switch)
-  \n/listen end (@user) - force ends the listening session.
+  \n/nerdout - Get a fun fact about the song you\'re currently listening to (only visible to you).
+  \n/eavesdrop user<username> - See what track a user is currently playing (only you can see the result).
+  \nTo make this work please connect Spotify to your Discord (Settings → Connections) and enable the \"Display current activity\" option.\nStart playing a song and then type /nerdout to get a fun fact.
+
+
+
+
   \n\n
   \n/wrap - The bot will start listening to the spotify status of all users in a server and post daily wrap ups as 11:50pm (set your local time using /setime).
   \n/unwrap - The bot will stop listening to the spotify status of all users in a server and stop posting daily wrap ups (only admins can use this).
