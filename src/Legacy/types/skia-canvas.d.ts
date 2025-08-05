@@ -1,3 +1,5 @@
+//used for old profile and image generation
+
 declare module 'skia-canvas' {
   export class Canvas {
     constructor(width: number, height: number);

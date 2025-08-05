@@ -1,4 +1,4 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+/*import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { supabase } from '../lib/supabase.js';
 import { spotifyClientId, spotifyClientSecret, spotifyRedirectUri } from '../lib/spotify.js';
 import 'dotenv/config';
@@ -7,7 +7,7 @@ import 'dotenv/config';
  * Spotify OAuth redirect handler for production (Vercel).
  * Exchanges the `code` for access + refresh tokens and stores them
  * in the `spotify_tokens` table, keyed by the Discord user ID we passed as `state`.
- */
+ 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const { code, state } = req.query as { [key: string]: string | undefined };
 
@@ -70,7 +70,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             username = uj.username ?? null;
             avatar = uj.avatar ?? null;
           }
-        } catch {/* ignore */}
+        } catch {/* ignore }
       }
 
       await supabase
@@ -126,4 +126,4 @@ export const config = {
   api: {
     bodyParser: false, // keep raw body
   },
-}; 
+}; */

@@ -4,9 +4,8 @@ export interface MusicSession {
   factCount: number;
 }
 
-export const musicSessions = new Map<string, MusicSession>(); // key = channelId
+export const musicSessions = new Map<string, MusicSession>();
 
-//Time out for listen session of the music bot
 export function scheduleMusicTimeout(channelId: string) {
   const session = musicSessions.get(channelId);
   if (!session) return;
@@ -14,6 +13,6 @@ export function scheduleMusicTimeout(channelId: string) {
   const timeout = setTimeout(() => {
     musicSessions.delete(channelId);
     console.log(`Music session for ${channelId} closed due to inactivity.`);
-  }, 7 * 60 * 1000); //7 minutes in milliseconds
+  }, 7 * 60 * 1000);
   session.timeout = timeout;
-} 
+}

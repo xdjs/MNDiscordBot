@@ -1,5 +1,5 @@
 import { Client, Message, REST, Routes } from 'discord.js';
-import { musicSessions, scheduleMusicTimeout } from '../sessions/music.js';
+import { musicSessions, scheduleMusicTimeout } from './musicSession.js';
 import { getSongFunFact } from '../utils/openai.js';
 
 export function registerMessageListener(client: Client, rest: REST) {
