@@ -1,3 +1,7 @@
+// This is the main file for the listen receiver.
+// It is responsible for listening to presence updates and scheduling wrap ups.
+// It is also responsible for registering the presence listener and the wrap scheduler.
+
 import 'dotenv/config';
 import express from 'express';
 import { REST } from 'discord.js';
@@ -5,7 +9,7 @@ import { Client as DiscordClient, GatewayIntentBits } from 'discord.js';
 
 // ---------- Route & listener registrations ----------
 import { registerPresenceListener } from '../src/listeners/presenceUpdate.js';
-import { registerMessageListener } from '../src/listeners/messageCreate.js';
+//import { registerMessageListener } from '../src/listeners/messageCreate.js';
 import { initWrapScheduler } from '../src/workers/wrapScheduler.js';
 import { loadWrapGuilds, subscribeWrapGuilds, wrapGuilds } from '../src/sessions/wrap.js';
 
@@ -46,11 +50,9 @@ app.use(express.json());
 
 app.get('/_health', (_, res) => res.send('ok'));
 
-// Register routes
-
 // Register Discord listeners
 registerPresenceListener(client, rest);
-registerMessageListener(client, rest);
+//registerMessageListener(client, rest);
 
 app.get('/', (_, res) => {
   res.send('Listen Receiver up');

@@ -110,7 +110,7 @@ export async function getFunFact(artist: string, track?: string): Promise<string
     fact = `${artist} is cool!`;
   }
 
-  // Parse leading tag
+  // Parse leading tag for fun fact of multi artist songs
   let footer = '';
   const tagMatch = /^\s*\[(\d+)]/.exec(fact);
   if (tagMatch) {
@@ -140,8 +140,8 @@ export async function getFunFact(artist: string, track?: string): Promise<string
   return fact + footer;
 }
 
-// Fun fact helper for music bot "now playing" lines
-export async function getSongFunFact(nowPlayingLine: string): Promise<string> {
+// Fun fact helper for music bot "now playing" lines (legacy)
+/*export async function getSongFunFact(nowPlayingLine: string): Promise<string> {
   if (!OPENAI_API_KEY) return `${nowPlayingLine} sounds great!`;
 
   const { bot_fact } = await loadSummaryPrompts();
@@ -174,4 +174,4 @@ export async function getSongFunFact(nowPlayingLine: string): Promise<string> {
     console.error('OpenAI song fact error', err);
     return `${nowPlayingLine} sounds great!`;
   }
-}
+}*/
