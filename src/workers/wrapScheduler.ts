@@ -135,8 +135,9 @@ async function postWrapForGuild(guildId: string, client: Client, rest: REST) {
     if (rows.length <= 3) accent = RED;
     else if (rows.length < 8) accent = YELLOW;
 
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
     // Build payloads
-    const artistPayload = buildWrapPayload(finalArtistLines, 0, 'Daily Top Artists', rows.slice(0, 5), accent);
+    const artistPayload = buildWrapPayload(finalArtistLines, 0, 'Daily Top Artists', rows.slice(0, 5), accent, 'artist', today);
     // Append random emoji to artist button labels
     if (artistPayload.components) {
       for (const row of artistPayload.components) {
@@ -150,16 +151,13 @@ async function postWrapForGuild(guildId: string, client: Client, rest: REST) {
         }
       }
     }
-    const trackUserRows = rows.slice(0, 5).map((r) => ({ ...r, top_artist: r.top_track }));
-    const trackPayload = buildWrapPayload(finalTrackLines, 0, 'Daily Top Tracks', trackUserRows, accent);
-    // Rename button custom_ids to differentiate from artist bio buttons and add random emojis
+    const trackUserRows = rows.slice(0, 5).map((r) => ({ ...r, top_track: r.top_track, top_artist: r.top_artist }));
+    const trackPayload = buildWrapPayload(finalTrackLines, 0, 'Daily Top Tracks', trackUserRows, accent, 'track', today);
+    // Add random emojis to track button labels
     if (trackPayload.components) {
       for (const row of trackPayload.components) {
         if (row.components) {
           for (const c of row.components) {
-            if (typeof c.custom_id === 'string' && c.custom_id.startsWith('wrap_pick_')) {
-              c.custom_id = c.custom_id.replace('wrap_pick_', 'wrap_track_');
-            }
             if (typeof c.label === 'string' && !c.label.includes('🔎')) {
               const randomEmoji = await pickRandomEmoji();
               c.label = `${c.label} ${randomEmoji}`;
@@ -213,7 +211,6 @@ async function postWrapForGuild(guildId: string, client: Client, rest: REST) {
     }));
 
     // Create timestamped entry for historical storage
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
     const historicalEntry = {
       date: today,
       data: rows,

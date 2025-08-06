@@ -116,9 +116,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (interaction.type === InteractionType.MESSAGE_COMPONENT) {
     const custom = interaction.data.custom_id as string;
     if (custom.startsWith('wrap_prev_') || custom.startsWith('wrap_next_')) {
-      const direction = custom.startsWith('wrap_prev_') ? -1 : 1;
-      const current = parseInt(custom.split('_').pop() || '0', 10);
-      const newPage = current + direction;
+      // Parse arrow ID: wrap_prev_<date?>_<page>
+      const parts = custom.split('_');
+      const direction = parts[1] === 'prev' ? -1 : 1;
+      let dateParam: string | undefined;
+      let currentPage = 0;
+      if (parts.length === 4) {
+        // wrap_prev_YYYY-MM-DD_page
+        dateParam = parts[2];
+        currentPage = parseInt(parts[3], 10);
+      } else if (parts.length === 3) {
+        // Legacy format: wrap_prev_page
+        currentPage = parseInt(parts[2], 10);
+      }
+      const newPage = currentPage + direction;
       const guildId = interaction.guild_id;
 
       // Determine embed type to use appropriate snapshot
@@ -214,51 +225,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // Build the full list with the preserved header so the summary is always present.
       const allLines = [...headerLines, ...lines];
 
-      // For artist embeds, we need to prepare userRowsPage with top_artist in the expected field
-      let userRowsForPagination = userRowsPage;
+      // Determine embed type for buildWrapPayload
+      let embedType: 'artist' | 'track' | 'legacy' = 'legacy';
       if (isArtistEmbed) {
-        userRowsForPagination = userRowsPage.map(row => ({
-          ...row,
-          // buildWrapPayload expects top_artist in the top_artist field for button labels
-        }));
+        embedType = 'artist';
       } else if (isTrackEmbed) {
-        userRowsForPagination = userRowsPage.map(row => ({
-          ...row,
-          // For track embeds, put track name in top_artist field for button labels
-          top_artist: row.top_track
-        }));
+        embedType = 'track';
       }
 
-      let payload = buildWrapPayload(allLines, newPage, origEmbed?.title ?? 'Daily Wrap', userRowsForPagination, accent);
+      let payload = buildWrapPayload(allLines, newPage, origEmbed?.title ?? 'Daily Wrap', userRowsPage, accent, embedType, dateParam);
       
-      // Modify buttons based on embed type
-      if (isTrackEmbed) {
-        // convert button ids and labels for track facts
-        if (payload.components) {
-          for (const row of payload.components) {
-            if (row.components) {
-              for (const c of row.components) {
-                if (typeof c.custom_id === 'string' && c.custom_id.startsWith('wrap_pick_')) {
-                  c.custom_id = c.custom_id.replace('wrap_pick_', 'wrap_track_');
-                }
-                if (typeof c.label === 'string' && !c.label.includes('🔎')) {
-                  const randomEmoji = await pickRandomEmoji();
-                  c.label = `${c.label} ${randomEmoji}`;
-                }
-              }
-            }
-          }
-        }
-      } else if (isArtistEmbed) {
-        // Add random emoji to artist buttons
-        if (payload.components) {
-          for (const row of payload.components) {
-            if (row.components) {
-              for (const c of row.components) {
-                if (typeof c.label === 'string' && !c.label.includes('🔎')) {
-                  const randomEmoji = await pickRandomEmoji();
-                  c.label = `${c.label} ${randomEmoji}`;
-                }
+      // Add random emojis to button labels (buttons are already correctly generated)
+      if (payload.components) {
+        for (const row of payload.components) {
+          if (row.components) {
+            for (const c of row.components) {
+              if (typeof c.label === 'string' && !c.label.includes('🔎')) {
+                const randomEmoji = await pickRandomEmoji();
+                c.label = `${c.label} ${randomEmoji}`;
               }
             }
           }
@@ -271,27 +255,77 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    // --------5 buttons for the artists bio --------
+    // --------Direct artist bio buttons --------
+    if (custom.startsWith('wrap_artist_')) {
+      const artistName = custom.replace('wrap_artist_', '');
+      
+      if (!artistName) {
+        return res.status(200).json({
+          type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+          data: {
+            content: `No artist information available.`,
+            flags: 64,
+          },
+        });
+      }
+
+      const info = await fetchArtistLinksByName(artistName);
+
+      //----------Artist bio retrieval----------
+      const baseUrl = process.env.BASE_URL || 'https://your-site.com';
+      let replyLines: string[] = [`**${artistName}**`];
+      if (info && !(info as any).skip) {
+        if (info.bio && info.bio.trim().length) {
+          replyLines.push(info.bio.trim());
+          replyLines.push(`Check out this artist: ${baseUrl}/artist/${info.id}`);
+        } else {
+          replyLines.push(`This artist doesn't have a bio yet, but feel free to check them out: ${baseUrl}/artist/${info.id}`);
+        }
+      } else {
+        replyLines.push(`I couldn't find this artist in the database yet, feel free to add them: ${baseUrl}`);
+      }
+
+      return res.status(200).json({
+        type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+        data: {
+          content: replyLines.join('\n'),
+          flags: 64,
+        },
+      });
+    }
+
+    // --------Legacy user ID-based artist bio buttons (fallback) --------
     if (custom.startsWith('wrap_pick_')) {
       const userId = custom.replace('wrap_pick_', '');
 
 
 
-      // Fetch artist from snapshot first
+      // Fetch artist from snapshot - try current data first, then historical
       let artistName: string | undefined;
-      const snap = await supabase.from('wrap_guilds').select('wrap_up').eq('guild_id', interaction.guild_id).maybeSingle();
-      if (snap.data?.wrap_up && Array.isArray(snap.data.wrap_up)) {
-        const wrapUpData = snap.data.wrap_up;
-        
-        if (wrapUpData.length > 0 && wrapUpData[0].date) {
-          // New historical format - use most recent data for button clicks
-          const mostRecent = wrapUpData[wrapUpData.length - 1];
-          const match = mostRecent?.data?.find((r: any) => r.user_id === userId);
-          artistName = match?.top_artist;
-        } else {
-          // Legacy format
-          const match = wrapUpData.find((r: any) => r.user_id === userId);
-          artistName = match?.top_artist;
+      
+      // First try wrap_artists (current day data)
+      const currentSnap = await supabase.from('wrap_guilds').select('wrap_artists').eq('guild_id', interaction.guild_id).maybeSingle();
+      if (currentSnap.data?.wrap_artists && Array.isArray(currentSnap.data.wrap_artists)) {
+        const match = currentSnap.data.wrap_artists.find((r: any) => r.user_id === userId);
+        artistName = match?.top_artist;
+      }
+      
+      // If not found in current data, try historical wrap_up
+      if (!artistName) {
+        const snap = await supabase.from('wrap_guilds').select('wrap_up').eq('guild_id', interaction.guild_id).maybeSingle();
+        if (snap.data?.wrap_up && Array.isArray(snap.data.wrap_up)) {
+          const wrapUpData = snap.data.wrap_up;
+          
+          if (wrapUpData.length > 0 && wrapUpData[0].date) {
+            // New historical format - use most recent historical data
+            const mostRecent = wrapUpData[wrapUpData.length - 1];
+            const match = mostRecent?.data?.find((r: any) => r.user_id === userId);
+            artistName = match?.top_artist;
+          } else {
+            // Legacy format
+            const match = wrapUpData.find((r: any) => r.user_id === userId);
+            artistName = match?.top_artist;
+          }
         }
       }
       if (!artistName) {
@@ -338,32 +372,109 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
        });
      }
 
-    // ---- Track fact buttons ----
+    // ---- Direct track fact buttons ----
     if (custom.startsWith('wrap_track_')) {
-      const userId = custom.replace('wrap_track_', '');
-
-      // Fetch track & artist from snapshot first
       let trackName: string | undefined;
       let artistName: string | undefined;
-      const snap = await supabase
-        .from('wrap_guilds')
-        .select('wrap_up')
-        .eq('guild_id', interaction.guild_id)
-        .maybeSingle();
-      if (snap.data?.wrap_up && Array.isArray(snap.data.wrap_up)) {
-        const wrapUpData = snap.data.wrap_up;
+      
+      // Check if this is the new direct format (contains track name) vs old user ID format
+      const customIdContent = custom.replace('wrap_track_', '');
+      if (customIdContent.startsWith('user_')) {
+        // This is the old user-based format, skip to legacy handler below
+      } else {
+        // This is the new direct track name format
+        trackName = customIdContent;
         
-        if (wrapUpData.length > 0 && wrapUpData[0].date) {
-          // New historical format - use most recent data for button clicks
-          const mostRecent = wrapUpData[wrapUpData.length - 1];
-          const match = mostRecent?.data?.find((r: any) => r.user_id === userId);
-          trackName = match?.top_track;
-          artistName = match?.top_artist;
+        if (!trackName) {
+          return res.status(200).json({
+            type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+            data: { content: `No track information available.`, flags: 64 },
+          });
+        }
+
+        // Load prompt template
+        let trackPrompt: string | null = null;
+        try {
+          const { data } = await supabase
+            .from('Summary_prompts')
+            .select('track_fact')
+            .limit(1)
+            .single();
+          trackPrompt = (data?.track_fact as string) ?? null;
+        } catch (err) {
+          console.error('[wrap_track] failed to load track_fact prompt', err);
+        }
+
+        let prompt: string;
+        if (trackPrompt) {
+          prompt = trackPrompt
+            .replace('{track}', trackName)
+            .replace('{artist}', artistName ?? '');
         } else {
-          // Legacy format
-          const match = wrapUpData.find((r: any) => r.user_id === userId);
-          trackName = match?.top_track;
-          artistName = match?.top_artist;
+          prompt = `Give me a true, lesser-known fun fact about the song "${trackName}"${artistName ? ` by ${artistName}` : ''}. Limit to 150 characters and cite the source in parentheses.`;
+        }
+
+        const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+        let fact = `${trackName} is awesome!`;
+        if (OPENAI_API_KEY) {
+          try {
+            const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${OPENAI_API_KEY}` },
+              body: JSON.stringify({ model: 'gpt-4o', messages: [{ role: 'user', content: prompt }], max_tokens: 60, temperature: 0.7 }),
+            });
+            const json = (await resp.json()) as any;
+            fact = json.choices?.[0]?.message?.content?.trim() || fact;
+          } catch (err) {
+            console.error('[wrap_track] OpenAI error', err);
+          }
+        }
+
+        return res.status(200).json({
+          type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+          data: { content: fact, flags: 64 },
+        });
+      }
+    }
+
+    // ---- Legacy track fact buttons (user ID based) ----
+    if (custom.startsWith('wrap_track_user_') || (custom.startsWith('wrap_track_') && custom.replace('wrap_track_', '').startsWith('user_'))) {
+      const userId = custom.replace('wrap_track_', '');
+
+      // Fetch track & artist from snapshot - try current data first, then historical
+      let trackName: string | undefined;
+      let artistName: string | undefined;
+      
+      // First try wrap_tracks (current day data)
+      const currentSnap = await supabase.from('wrap_guilds').select('wrap_tracks').eq('guild_id', interaction.guild_id).maybeSingle();
+      if (currentSnap.data?.wrap_tracks && Array.isArray(currentSnap.data.wrap_tracks)) {
+        const match = currentSnap.data.wrap_tracks.find((r: any) => r.user_id === userId);
+        trackName = match?.top_track;
+        artistName = match?.top_artist;
+      }
+      
+      // If not found in current data, try historical wrap_up
+      if (!trackName) {
+        const snap = await supabase
+          .from('wrap_guilds')
+          .select('wrap_up')
+          .eq('guild_id', interaction.guild_id)
+          .maybeSingle();
+        if (snap.data?.wrap_up && Array.isArray(snap.data.wrap_up)) {
+          const wrapUpData = snap.data.wrap_up;
+          
+          if (wrapUpData.length > 0 && wrapUpData[0].date) {
+            // New historical format - use most recent historical data
+            const mostRecent = wrapUpData[wrapUpData.length - 1];
+            const match = mostRecent?.data?.find((r: any) => r.user_id === userId);
+            trackName = match?.top_track;
+            artistName = match?.top_artist;
+          } else {
+            // Legacy format
+            const match = wrapUpData.find((r: any) => r.user_id === userId);
+            trackName = match?.top_track;
+            artistName = match?.top_artist;
+          }
         }
       }
       if (!trackName) {

@@ -24,6 +24,8 @@ export function buildWrapPayload(
     title: string,
     userRows: UserRowMeta[], // rows corresponding to the *current page*
     accentColor?: number,
+    embedType?: 'artist' | 'track' | 'legacy',
+    wrapDate?: string, // YYYY-MM-DD for arrow IDs
   ): EmbedPayload {
   // First two lines are summary prompt and a blank line; keep them on every page
   const headerLines = lines.slice(0, 2);
@@ -59,6 +61,7 @@ export function buildWrapPayload(
   };
 
   // Navigation (arrow) row
+  const dateFragment = wrapDate ? `${wrapDate}_` : '';
   const navRow = {
     type: 1,
     components: [
@@ -66,32 +69,58 @@ export function buildWrapPayload(
         type: 2,
         style: 2,
         label: '◀',
-        custom_id: `wrap_prev_${safePage}`,
+        custom_id: `wrap_prev_${dateFragment}${safePage}`,
         disabled: safePage === 0,
       },
       {
         type: 2,
         style: 2,
         label: '▶',
-        custom_id: `wrap_next_${safePage}`,
+        custom_id: `wrap_next_${dateFragment}${safePage}`,
         disabled: safePage >= totalPages - 1,
       },
     ],
   };
 
-  // Selection row – label is artist name (or number fallback)
+  // Selection row – label and custom_id based on embed type
   const numRow = {
     type: 1,
     components: userSlice.map((rowMeta, idx) => {
-      const artistLabel = rowMeta?.top_artist?.trim();
-      const baseLabel = artistLabel && artistLabel.length
-        ? artistLabel.slice(0, 25)
-        : String(idx + 1);
+      let baseLabel: string;
+      let customId: string;
+      
+      if (embedType === 'track') {
+        // For track embeds, use track name
+        const trackLabel = (rowMeta as any)?.top_track?.trim();
+        baseLabel = trackLabel && trackLabel.length
+          ? trackLabel.slice(0, 25)
+          : String(idx + 1);
+        customId = trackLabel && trackLabel.length
+          ? `wrap_track_${trackLabel.slice(0, 80)}`
+          : `wrap_pick_${rowMeta.user_id}`;
+      } else if (embedType === 'artist') {
+        // For artist embeds, use artist name
+        const artistLabel = rowMeta?.top_artist?.trim();
+        baseLabel = artistLabel && artistLabel.length
+          ? artistLabel.slice(0, 25)
+          : String(idx + 1);
+        customId = artistLabel && artistLabel.length
+          ? `wrap_artist_${artistLabel.slice(0, 80)}`
+          : `wrap_pick_${rowMeta.user_id}`;
+      } else {
+        // Legacy format - use artist name but old custom_id
+        const artistLabel = rowMeta?.top_artist?.trim();
+        baseLabel = artistLabel && artistLabel.length
+          ? artistLabel.slice(0, 25)
+          : String(idx + 1);
+        customId = `wrap_pick_${rowMeta.user_id}`;
+      }
+      
       return {
         type: 2,
         style: 2,
         label: baseLabel,
-        custom_id: `wrap_pick_${rowMeta.user_id}`,
+        custom_id: customId,
       };
     }),
   };
