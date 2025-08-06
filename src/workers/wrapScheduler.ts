@@ -43,6 +43,29 @@ async function pickShameTitle(): Promise<string> {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
+// -----------------------------------------------
+// Random emoji selector for buttons
+// -----------------------------------------------
+async function pickRandomEmoji(): Promise<string> {
+  try {
+    const { data, error } = await supabase
+      .from('Summary_prompts')
+      .select('emoji')
+      .limit(1)
+      .single();
+
+    if (error || !data) return '🔎'; // fallback to magnifying glass
+
+    const emojis = (data.emoji as string[]) ?? [];
+    if (!Array.isArray(emojis) || emojis.length === 0) return '🔎';
+
+    return emojis[Math.floor(Math.random() * emojis.length)];
+  } catch (err) {
+    console.error('[pickRandomEmoji] failed to load emojis', err);
+    return '🔎'; // fallback to magnifying glass
+  }
+}
+
 
 // ------------------------------------------------------------------------------------------------
 // Dynamic wrap-up scheduler:
@@ -114,27 +137,37 @@ async function postWrapForGuild(guildId: string, client: Client, rest: REST) {
 
     // Build payloads
     const artistPayload = buildWrapPayload(finalArtistLines, 0, 'Daily Top Artists', rows.slice(0, 5), accent);
-    // Append magnifying glass to artist button labels
-    artistPayload.components?.forEach((row: any) => {
-      row.components?.forEach((c: any) => {
-        if (typeof c.label === 'string' && !c.label.includes('🔎')) {
-          c.label = `${c.label} 🔎`;
+    // Append random emoji to artist button labels
+    if (artistPayload.components) {
+      for (const row of artistPayload.components) {
+        if (row.components) {
+          for (const c of row.components) {
+            if (typeof c.label === 'string' && !c.label.includes('🔎')) {
+              const randomEmoji = await pickRandomEmoji();
+              c.label = `${c.label} ${randomEmoji}`;
+            }
+          }
         }
-      });
-    });
-    const trackUserRows = rows.slice(0, 5).map((r) => ({ ...r, top_artist: r.top_track }));
-    const trackPayload = buildWrapPayload(finalTrackLines, 0, 'Daily Top Tracks', trackUserRows, accent);
-    // Rename button custom_ids to differentiate from artist bio buttons
-    trackPayload.components?.forEach((row: any) => {
-      row.components?.forEach((c: any) => {
-        if (typeof c.custom_id === 'string' && c.custom_id.startsWith('wrap_pick_')) {
-                c.custom_id = c.custom_id.replace('wrap_pick_', 'wrap_track_');
-      if (typeof c.label === 'string' && !c.label.includes('🔎')) {
-        c.label = `${c.label} 🔎`;
       }
     }
-  });
-});
+    const trackUserRows = rows.slice(0, 5).map((r) => ({ ...r, top_artist: r.top_track }));
+    const trackPayload = buildWrapPayload(finalTrackLines, 0, 'Daily Top Tracks', trackUserRows, accent);
+    // Rename button custom_ids to differentiate from artist bio buttons and add random emojis
+    if (trackPayload.components) {
+      for (const row of trackPayload.components) {
+        if (row.components) {
+          for (const c of row.components) {
+            if (typeof c.custom_id === 'string' && c.custom_id.startsWith('wrap_pick_')) {
+              c.custom_id = c.custom_id.replace('wrap_pick_', 'wrap_track_');
+            }
+            if (typeof c.label === 'string' && !c.label.includes('🔎')) {
+              const randomEmoji = await pickRandomEmoji();
+              c.label = `${c.label} ${randomEmoji}`;
+            }
+          }
+        }
+      }
+    }
 
     // Post both embeds (results no longer needed)
     await rest.post(Routes.channelMessages(channelId), { body: artistPayload });
@@ -162,11 +195,59 @@ async function postWrapForGuild(guildId: string, client: Client, rest: REST) {
       });
     }
 
-    // Persist snapshot so pagination still works after daily reset
+    // Persist snapshots so pagination still works after daily reset
+    // Store separate data for artist and track embeds
+    const artistData = rows.map(row => ({
+      user_id: row.user_id,
+      top_artist: row.top_artist,
+      username: row.username,
+      last_updated: row.last_updated
+    }));
+    
+    const trackData = rows.map(row => ({
+      user_id: row.user_id,
+      top_track: row.top_track,
+      top_artist: row.top_artist, // Keep artist for track embed context
+      username: row.username,
+      last_updated: row.last_updated
+    }));
+
+    // Create timestamped entry for historical storage
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+    const historicalEntry = {
+      date: today,
+      data: rows,
+      shame: shameRows
+    };
+
     try {
+      // First, get existing wrap_up history
+      const { data: existing } = await supabase
+        .from('wrap_guilds')
+        .select('wrap_up')
+        .eq('guild_id', guildId)
+        .maybeSingle();
+      
+      let historicalData = [];
+      if (existing?.wrap_up && Array.isArray(existing.wrap_up)) {
+        // If wrap_up already contains historical data, append to it
+        historicalData = existing.wrap_up;
+        // Remove any existing entry for today (in case of re-runs)
+        historicalData = historicalData.filter((entry: any) => entry.date !== today);
+      }
+      
+      // Add today's entry
+      historicalData.push(historicalEntry);
+      
       await supabase
         .from('wrap_guilds')
-        .update({ posted: true, wrap_up: rows, shame: shameRows })
+        .update({ 
+          posted: true, 
+          wrap_up: historicalData, // Now stores historical data with timestamps
+          wrap_artists: artistData, // Current day for new embeds
+          wrap_tracks: trackData,   // Current day for new embeds
+          shame: shameRows          // Current day shame list
+        })
         .eq('guild_id', guildId);
     } catch (err) {
       console.error('[wrapScheduler] failed to set posted flag or wrap snapshot for', guildId, err);
