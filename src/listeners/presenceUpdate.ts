@@ -25,14 +25,29 @@ export function registerPresenceListener(client: Client, rest: REST) {
           console.log('[presence-wrap] No trackId found for Spotify activity – skipping to avoid logging podcasts');
           return;
         }
-        const raw = spot.state || spot.assets?.largeText?.split(' – ')[0] || '';
-        const artistNames: string[] = raw   //artist names are split by commas, semicolons, ampersands, and spaces
-          .split(/[,;&]|\s+&\s+/)
-          .map((s) => s.trim())
-          .filter(Boolean);
+        // Attempt to derive the artist list – prefer Spotify API for accuracy, fall back to regex parsing.
+        let artistNames: string[] = [];
+        if (spot.name === 'Spotify' && trackId) {
+          try {
+            const { fetchArtistsByTrackId } = await import('../utils/spotify.js');
+            const fetched = await fetchArtistsByTrackId(trackId);
+            if (fetched) artistNames = fetched;
+          } catch (err) {
+            console.error('[presence-wrap] Spotify artist fetch failed', err);
+          }
+        }
+
+        // Fallback: parse raw string from presence when API unavailable / not Spotify
+        if (!artistNames.length) {
+          const raw = spot.state || spot.assets?.largeText?.split(' – ')[0] || '';
+          artistNames = raw
+            .split(/\s+&\s+|;|\s+feat\.?\s+|\s+ft\.?\s+/i) // do NOT split on commas to keep names like "Tyler, The Creator"
+            .map((s) => s.trim())
+            .filter(Boolean);
+        }
 
         const artistDisplay = artistNames.join(', ') || 'Unknown artist';
-        console.log('[presence-wrap] artists parsed:', artistDisplay);
+        console.log('[presence-wrap] artists resolved:', artistDisplay);
 
         {
           try {
