@@ -139,39 +139,3 @@ export async function getFunFact(artist: string, track?: string): Promise<string
 
   return fact + footer;
 }
-
-// Fun fact helper for music bot "now playing" lines (legacy)
-/*export async function getSongFunFact(nowPlayingLine: string): Promise<string> {
-  if (!OPENAI_API_KEY) return `${nowPlayingLine} sounds great!`;
-
-  const { bot_fact } = await loadSummaryPrompts();
-  const prompt = bot_fact
-    ? bot_fact.replace('{message}', nowPlayingLine)
-    : `The following Discord message came from a music bot and announces what it is currently playing.\n` +
-      `Message: "${nowPlayingLine}"\n` +
-      `Extract the song (and artist if present) and give me one fun fact about that song in 1-2 sentences. ` +
-      `If you cannot identify the song, reply: I'm sorry but I couldn't find anything about that song.`;
-
-  try {
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o',
-        messages: [{ role: 'user', content: prompt }],
-        max_tokens: 60,
-        temperature: 0.7,
-      }),
-    });
-
-    const json = (await res.json()) as any;
-    const fact = json.choices?.[0]?.message?.content?.trim();
-    return fact || `${nowPlayingLine} sounds great!`;
-  } catch (err) {
-    console.error('OpenAI song fact error', err);
-    return `${nowPlayingLine} sounds great!`;
-  }
-}*/

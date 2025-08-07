@@ -1,18 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { verifyKey, InteractionType, InteractionResponseType } from 'discord-interactions';
 import 'dotenv/config';
-
-
-
-
 import { help } from './commands/help.js';
 import { eavesdrop } from './commands/eavesdrop.js';
 import { nerdout } from './commands/nerdout.js';
-
-
-
-
-
 import { wrap as wrapCommand } from './commands/wrap.js';
 import { update as updateCommand } from './commands/update.js';
 import { unwrap as unwrapCommand } from './commands/unwrap.js';
@@ -117,6 +108,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const custom = interaction.data.custom_id as string;
     if (custom.startsWith('wrap_prev_') || custom.startsWith('wrap_next_')) {
       // Parse arrow ID: wrap_prev_<date?>_<page>
+      //Date to correct page info 
       const parts = custom.split('_');
       const direction = parts[1] === 'prev' ? -1 : 1;
       let dateParam: string | undefined;
@@ -202,9 +194,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           return `${userMention} — 🎤 **Artist:** ${row.top_artist ?? 'N/A'}`;
         });
       } else if (isTrackEmbed) {
-        lines = rows.map((row) => {
+        lines = rows.map((row:any) => {
           const userMention = `<@${row.user_id}>`;
-          return `${userMention} — 🎵 **Track:** ${row.top_track ?? 'N/A'}`;
+          const url = row.spotify_track_id ? `https://open.spotify.com/track/${row.spotify_track_id}` : null;
+          const display = url ? `[${row.top_track ?? 'N/A'}](${url})` : (row.top_track ?? 'N/A');
+          return `${userMention} — 🎵 **Track:** ${display}`;
         });
       } else {
         // Legacy combined format -- used for old embeds before 2025-08-06
@@ -294,7 +288,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    // --------Legacy user ID-based artist bio buttons (fallback) --------
+    // --------Legacy user ID-based artist bio buttons (fallback) -------- **ONLY DELETE AFTER A WEEK**
     if (custom.startsWith('wrap_pick_')) {
       const userId = custom.replace('wrap_pick_', '');
 
@@ -372,6 +366,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
        });
      }
 
+     // ^^^^^^^^^^^^^^Legacy user ID-based track bio buttons (fallback) ^^^^^^^^^^^^**ONLY DELETE AFTER A WEEK**^^^^^^^^^
+
     // ---- Direct track fact buttons ----
     if (custom.startsWith('wrap_track_')) {
       let trackName: string | undefined;
@@ -411,7 +407,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             .replace('{track}', trackName)
             .replace('{artist}', artistName ?? '');
         } else {
-          prompt = `Give me a true, lesser-known fun fact about the song "${trackName}"${artistName ? ` by ${artistName}` : ''}. Limit to 150 characters and cite the source in parentheses.`;
+          prompt = `Give me a true, lesser-known fun fact about the song "${trackName}"${artistName ? ` by ${artistName}` : ''}. Limit to 150 characters.`;
         }
 
         const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
@@ -437,7 +433,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    // ---- Legacy track fact buttons (user ID based) ----
+    // ---- Legacy track fact buttons (user ID based) ---- **ONLY DELETE AFTER A WEEK**
     if (custom.startsWith('wrap_track_user_') || (custom.startsWith('wrap_track_') && custom.replace('wrap_track_', '').startsWith('user_'))) {
       const userId = custom.replace('wrap_track_', '');
 
@@ -537,6 +533,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         data: { content: fact, flags: 64 },
       });
     }
+    // ^^^^^^^^^^^^^^Legacy track fact buttons (user ID based) ^^^^^^^^^^^^**ONLY DELETE AFTER A WEEK**^^^^^^^^^
   }
 
   res.status(400).send('Unhandled interaction type');

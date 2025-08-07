@@ -97,11 +97,16 @@ async function postWrapForGuild(guildId: string, client: Client, rest: REST) {
 
     const { data } = await supabase
       .from('user_tracks')
-      .select('user_id, username, top_track, top_artist, last_updated')
+      .select('user_id, username, top_track, top_artist, tracks, last_updated')
       .eq('guild_id', guildId);
 
     const rows = Array.isArray(data)
       ? data.filter((r) => r.top_track !== null || r.top_artist !== null)
+        .map((r:any)=>{
+          const first = Array.isArray(r.tracks) && r.tracks.length ? r.tracks[0] : null;
+          const id = first ? (typeof first === 'string' ? first : first.id) : null;
+          return { ...r, spotify_track_id: id };
+        })
       : [];
     // Users with no listening data for the day – we'll "shame" them separately
     const shameRows = Array.isArray(data)
@@ -115,9 +120,11 @@ async function postWrapForGuild(guildId: string, client: Client, rest: REST) {
       return `${mention} — 🎤 **Artist:** ${row.top_artist ?? 'N/A'}`;
     });
 
-    const trackLines = rows.map((row) => {
+    const trackLines = rows.map((row:any) => {
       const mention = `<@${row.user_id}>`;
-      return `${mention} — 🎵 **Track:** ${row.top_track ?? 'N/A'}`;
+      const url = row.spotify_track_id ? `https://open.spotify.com/track/${row.spotify_track_id}` : null;
+      const display = url ? `[${row.top_track ?? 'N/A'}](${url})` : (row.top_track ?? 'N/A');
+      return `${mention} — 🎵 **Track:** ${display}`;
     });
 
     // Fetch a prompt based on number of users
