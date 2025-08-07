@@ -202,31 +202,37 @@ async function postWrapForGuild(guildId: string, client: Client, rest: REST) {
       });
     }
 
-    // Persist snapshots so pagination still works after daily reset
-    // Store separate data for artist and track embeds
-    const artistData = rows.map(row => ({
-      user_id: row.user_id,
-      top_artist: row.top_artist,
-      username: row.username,
-      last_updated: row.last_updated
-    }));
-    
-    const trackData = rows.map(row => ({
-      user_id: row.user_id,
-      top_track: row.top_track,
-      top_artist: row.top_artist, // Keep artist for track embed context
-      spotify_track_id: row.spotify_track_id, // preserve ID for paginator links
-      username: row.username,
-      last_updated: row.last_updated,
-    }));
+    const needsSnapshot = rows.length > 5; // only multi-page embeds need historical storage
 
-    // Create timestamped entry for historical storage
-    const historicalEntry = {
-      posted_at: nowIso,
-      date: today,
-      data: rows,
-      shame: shameRows,
-    };
+    let artistData: any[] | undefined;
+    let trackData: any[] | undefined;
+    let historicalEntry: any | undefined;
+
+    if (needsSnapshot) {
+      // Persist snapshots so pagination still works after daily reset
+      artistData = rows.map(row => ({
+        user_id: row.user_id,
+        top_artist: row.top_artist,
+        username: row.username,
+        last_updated: row.last_updated,
+      }));
+
+      trackData = rows.map(row => ({
+        user_id: row.user_id,
+        top_track: row.top_track,
+        top_artist: row.top_artist,
+        spotify_track_id: row.spotify_track_id,
+        username: row.username,
+        last_updated: row.last_updated,
+      }));
+
+      historicalEntry = {
+        posted_at: nowIso,
+        date: today,
+        data: rows,
+        shame: shameRows,
+      };
+    }
 
     try {
       // First, get existing wrap_up history
@@ -244,8 +250,7 @@ async function postWrapForGuild(guildId: string, client: Client, rest: REST) {
         historicalData = historicalData.filter((entry: any) => entry.date !== today);
       }
       
-      // Add today's entry
-      historicalData.push(historicalEntry);
+      if (historicalEntry) historicalData.push(historicalEntry);
       
       // Compute next local_time based on interval setting
       let nextLocalTime: string | undefined;
@@ -281,9 +286,9 @@ async function postWrapForGuild(guildId: string, client: Client, rest: REST) {
 
       const updatePayload: any = {
         posted: true,
-        wrap_up: historicalData,
-        wrap_artists: artistData,
-        wrap_tracks: trackData,
+        wrap_up: needsSnapshot ? historicalData : undefined,
+        wrap_artists: needsSnapshot ? artistData : undefined,
+        wrap_tracks: needsSnapshot ? trackData : undefined,
         shame: shameRows,
       };
       if (nextLocalTime) {
@@ -298,7 +303,7 @@ async function postWrapForGuild(guildId: string, client: Client, rest: REST) {
       console.error('[wrapScheduler] failed to set posted flag or wrap snapshot for', guildId, err);
     }
 
-    // Schedule flag reset after 1 hour so the next day's wrap can post,
+    // Schedule flag reset after 45 minutes so the next day's wrap can post,
     // but KEEP all artist bio buttons available indefinitely.
     setTimeout(async () => {
       try {
