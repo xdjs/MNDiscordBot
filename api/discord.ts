@@ -8,6 +8,7 @@ import { wrap as wrapCommand } from './commands/wrap.js';
 import { update as updateCommand } from './commands/update.js';
 import { unwrap as unwrapCommand } from './commands/unwrap.js';
 import { settime } from './commands/settime.js';
+import { setinterval } from './commands/setinterval.js';
 import { buildWrapPayload } from '../src/utils/wrapPaginator.js';
 import { fetchArtistLinksByName } from '../src/services/artistLinks.js';
 import { supabase } from './lib/supabase.js';
@@ -94,6 +95,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       case 'settime':
         response = await settime(interaction);
         break;
+      case 'setinterval':
+        response = await setinterval(interaction);
+        break;
       default:
         response = {
           type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
@@ -111,11 +115,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       //Date to correct page info 
       const parts = custom.split('_');
       const direction = parts[1] === 'prev' ? -1 : 1;
-      let dateParam: string | undefined;
+      let idParam: string | undefined;
       let currentPage = 0;
       if (parts.length === 4) {
         // wrap_prev_YYYY-MM-DD_page
-        dateParam = parts[2];
+        idParam = parts[2];
         currentPage = parseInt(parts[3], 10);
       } else if (parts.length === 3) {
         // Legacy format: wrap_prev_page
@@ -150,18 +154,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!data) {
         const snapRes = await supabase.from('wrap_guilds').select('wrap_up').eq('guild_id', guildId).maybeSingle();
         if (snapRes.data?.wrap_up && Array.isArray(snapRes.data.wrap_up)) {
-          // Check if wrap_up contains historical data (new format) or legacy data (old format)
           const wrapUpData = snapRes.data.wrap_up;
-          
-          if (wrapUpData.length > 0 && wrapUpData[0].date) {
-            // New historical format - try to find data from the embed's creation date
-            // For now, use the most recent entry as fallback
-            // TODO: We could extract embed timestamp to find exact historical match
-            const mostRecent = wrapUpData[wrapUpData.length - 1];
-            data = mostRecent?.data || [];
-          } else {
-            // Legacy format - direct array of user data
-            data = wrapUpData;
+          // 1. Try exact posted_at match when idParam looks like timestamp
+          if (idParam && idParam.includes('T')) {
+            const match = wrapUpData.find((e: any) => typeof e.posted_at === 'string' && e.posted_at.replace(/[^0-9A-Z]/gi, '') === idParam);
+            if (match) data = match.data;
+          }
+          // 2. Fallback to date-only match
+          if (!data && idParam && !idParam.includes('T')) {
+            const matchByDate = wrapUpData.find((e: any) => e.date === idParam);
+            if (matchByDate) data = matchByDate.data;
+          }
+          // 3. Final fallback to most recent snapshot or legacy array
+          if (!data) {
+            if (wrapUpData.length && wrapUpData[0].date) {
+              data = wrapUpData[wrapUpData.length - 1]?.data || [];
+            } else {
+              data = wrapUpData; // legacy flat array
+            }
           }
         }
       }
@@ -227,7 +237,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         embedType = 'track';
       }
 
-      let payload = buildWrapPayload(allLines, newPage, origEmbed?.title ?? 'Daily Wrap', userRowsPage, accent, embedType, dateParam);
+      let payload = buildWrapPayload(allLines, newPage, origEmbed?.title ?? 'Daily Wrap', userRowsPage, accent, embedType, idParam);
       
       // Add random emojis to button labels (buttons are already correctly generated)
       if (payload.components) {

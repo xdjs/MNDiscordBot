@@ -25,7 +25,7 @@ export function buildWrapPayload(
     userRows: UserRowMeta[], // rows corresponding to the *current page*
     accentColor?: number,
     embedType?: 'artist' | 'track' | 'legacy',
-    wrapDate?: string, // YYYY-MM-DD for arrow IDs
+    wrapId?: string, // date (YYYY-MM-DD) or full postedId for arrow IDs
   ): EmbedPayload {
   // First two lines are summary prompt and a blank line; keep them on every page
   const headerLines = lines.slice(0, 2);
@@ -61,7 +61,7 @@ export function buildWrapPayload(
   };
 
   // Navigation (arrow) row
-  const dateFragment = wrapDate ? `${wrapDate}_` : '';
+  const idFragment = wrapId ? `${wrapId}_` : '';
   const navRow = {
     type: 1,
     components: [
@@ -69,14 +69,14 @@ export function buildWrapPayload(
         type: 2,
         style: 2,
         label: '◀',
-        custom_id: `wrap_prev_${dateFragment}${safePage}`,
+        custom_id: `wrap_prev_${idFragment}${safePage}`,
         disabled: safePage === 0,
       },
       {
         type: 2,
         style: 2,
         label: '▶',
-        custom_id: `wrap_next_${dateFragment}${safePage}`,
+        custom_id: `wrap_next_${idFragment}${safePage}`,
         disabled: safePage >= totalPages - 1,
       },
     ],
