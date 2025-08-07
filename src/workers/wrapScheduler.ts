@@ -215,8 +215,9 @@ async function postWrapForGuild(guildId: string, client: Client, rest: REST) {
       user_id: row.user_id,
       top_track: row.top_track,
       top_artist: row.top_artist, // Keep artist for track embed context
+      spotify_track_id: row.spotify_track_id, // preserve ID for paginator links
       username: row.username,
-      last_updated: row.last_updated
+      last_updated: row.last_updated,
     }));
 
     // Create timestamped entry for historical storage
