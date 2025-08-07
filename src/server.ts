@@ -1,6 +1,5 @@
 import express from 'express';
 import discordHandler from '../api/discord.js';
-//import spotifyCallbackHandler from '../api/spotify/callback.js';
 // Spin up presence listener in the same process so gateway events are captured even in single-process deployments.
 import '../render/listenReceiver.js';
 
@@ -11,12 +10,6 @@ app.post('/api/discord', (req, res) => {
   // Pass the raw request stream directly; discordHandler handles buffering & signature.
   discordHandler(req as any, res as any);
 });
-
-// Spotify OAuth redirect/callback (GET)
-/*app.get('/api/spotify/callback', (req, res) => {
-  // Delegate to the existing handler used in serverless envs
-  spotifyCallbackHandler(req as any, res as any);
-});*/
 
 // Simple health check (possiible legacy code)
 app.get('/_health', (_, res) => res.send('ok'));

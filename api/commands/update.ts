@@ -11,7 +11,7 @@ export async function update(guildId: string | undefined) {
 
   const { data, error } = await supabase
     .from('user_tracks')
-    .select('user_id, top_track, top_artist')
+    .select('user_id, top_track, top_artist, tracks')
     .eq('guild_id', guildId);
 
   if (error) {
@@ -34,9 +34,13 @@ export async function update(guildId: string | undefined) {
   const artistLines: string[] = [];
 
   // Simple ranking by order (could sort by something later)
-  data.forEach((row, idx) => {
+  data.forEach((row:any, idx) => {
+    const first = Array.isArray(row.tracks) && row.tracks.length ? row.tracks[0] : null;
+    row.spotify_track_id = first ? (typeof first === 'string' ? first : first.id) : null;
     const mention = `<@${row.user_id}>`;
-    trackLines.push(`${mention} — 🎵 **Track:** ${row.top_track ?? 'N/A'} by ${row.top_artist ?? 'Unknown'}`);
+    const url = (row as any).spotify_track_id ? `https://open.spotify.com/track/${(row as any).spotify_track_id}` : null;
+    const display = url ? `[${row.top_track ?? 'N/A'}](${url})` : (row.top_track ?? 'N/A');
+    trackLines.push(`${mention} — 🎵 **Track:** ${display}`);
     artistLines.push(`${idx + 1}. ${mention} — ${row.top_artist ?? 'N/A'}`);
   });
 

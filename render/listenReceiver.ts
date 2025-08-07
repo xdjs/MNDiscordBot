@@ -9,7 +9,6 @@ import { Client as DiscordClient, GatewayIntentBits } from 'discord.js';
 
 // ---------- Route & listener registrations ----------
 import { registerPresenceListener } from '../src/listeners/presenceUpdate.js';
-//import { registerMessageListener } from '../src/listeners/messageCreate.js';
 import { initWrapScheduler } from '../src/workers/wrapScheduler.js';
 import { loadWrapGuilds, subscribeWrapGuilds, wrapGuilds } from '../src/sessions/wrap.js';
 
@@ -52,7 +51,6 @@ app.get('/_health', (_, res) => res.send('ok'));
 
 // Register Discord listeners
 registerPresenceListener(client, rest);
-//registerMessageListener(client, rest);
 
 app.get('/', (_, res) => {
   res.send('Listen Receiver up');

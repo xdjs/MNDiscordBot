@@ -97,11 +97,16 @@ async function postWrapForGuild(guildId: string, client: Client, rest: REST) {
 
     const { data } = await supabase
       .from('user_tracks')
-      .select('user_id, username, top_track, top_artist, last_updated')
+      .select('user_id, username, top_track, top_artist, tracks, last_updated')
       .eq('guild_id', guildId);
 
     const rows = Array.isArray(data)
       ? data.filter((r) => r.top_track !== null || r.top_artist !== null)
+        .map((r:any)=>{
+          const first = Array.isArray(r.tracks) && r.tracks.length ? r.tracks[0] : null;
+          const id = first ? (typeof first === 'string' ? first : first.id) : null;
+          return { ...r, spotify_track_id: id };
+        })
       : [];
     // Users with no listening data for the day – we'll "shame" them separately
     const shameRows = Array.isArray(data)
@@ -115,9 +120,11 @@ async function postWrapForGuild(guildId: string, client: Client, rest: REST) {
       return `${mention} — 🎤 **Artist:** ${row.top_artist ?? 'N/A'}`;
     });
 
-    const trackLines = rows.map((row) => {
+    const trackLines = rows.map((row:any) => {
       const mention = `<@${row.user_id}>`;
-      return `${mention} — 🎵 **Track:** ${row.top_track ?? 'N/A'}`;
+      const url = row.spotify_track_id ? `https://open.spotify.com/track/${row.spotify_track_id}` : null;
+      const display = url ? `[${row.top_track ?? 'N/A'}](${url})` : (row.top_track ?? 'N/A');
+      return `${mention} — 🎵 **Track:** ${display}`;
     });
 
     // Fetch a prompt based on number of users
@@ -135,9 +142,11 @@ async function postWrapForGuild(guildId: string, client: Client, rest: REST) {
     if (rows.length <= 3) accent = RED;
     else if (rows.length < 8) accent = YELLOW;
 
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-    // Build payloads
-    const artistPayload = buildWrapPayload(finalArtistLines, 0, 'Daily Top Artists', rows.slice(0, 5), accent, 'artist', today);
+    const nowIso = new Date().toISOString();
+    const today = nowIso.split('T')[0]; // YYYY-MM-DD
+    const postedId = nowIso.replace(/[^0-9A-Z]/gi, ''); // safe custom_id fragment
+    // Build payloads with unique postedId
+    const artistPayload = buildWrapPayload(finalArtistLines, 0, 'Daily Top Artists', rows.slice(0, 5), accent, 'artist', postedId);
     // Append random emoji to artist button labels
     if (artistPayload.components) {
       for (const row of artistPayload.components) {
@@ -152,7 +161,7 @@ async function postWrapForGuild(guildId: string, client: Client, rest: REST) {
       }
     }
     const trackUserRows = rows.slice(0, 5).map((r) => ({ ...r, top_track: r.top_track, top_artist: r.top_artist }));
-    const trackPayload = buildWrapPayload(finalTrackLines, 0, 'Daily Top Tracks', trackUserRows, accent, 'track', today);
+    const trackPayload = buildWrapPayload(finalTrackLines, 0, 'Daily Top Tracks', trackUserRows, accent, 'track', postedId);
     // Add random emojis to track button labels
     if (trackPayload.components) {
       for (const row of trackPayload.components) {
@@ -212,9 +221,10 @@ async function postWrapForGuild(guildId: string, client: Client, rest: REST) {
 
     // Create timestamped entry for historical storage
     const historicalEntry = {
+      posted_at: nowIso,
       date: today,
       data: rows,
-      shame: shameRows
+      shame: shameRows,
     };
 
     try {
@@ -236,15 +246,52 @@ async function postWrapForGuild(guildId: string, client: Client, rest: REST) {
       // Add today's entry
       historicalData.push(historicalEntry);
       
+      // Compute next local_time based on interval setting
+      let nextLocalTime: string | undefined;
+      try {
+        const { data: cfg } = await supabase
+          .from('wrap_guilds')
+          .select('local_time, interval')
+          .eq('guild_id', guildId)
+          .maybeSingle();
+
+        const intervalHours = typeof cfg?.interval === 'number' ? cfg.interval : 0;
+        if (intervalHours && intervalHours > 0) {
+          // Base time: existing local_time (if any) else current UTC time
+          let baseH: number;
+          let baseM: number;
+          if (cfg?.local_time) {
+            const [hStr, mStr] = cfg.local_time.slice(0, 5).split(':');
+            baseH = parseInt(hStr, 10);
+            baseM = parseInt(mStr, 10);
+          } else {
+            const nowUtc = new Date();
+            baseH = nowUtc.getUTCHours();
+            baseM = nowUtc.getUTCMinutes();
+          }
+          const newH = (baseH + intervalHours) % 24;
+          const hh = newH.toString().padStart(2, '0');
+          const mm = baseM.toString().padStart(2, '0');
+          nextLocalTime = `${hh}:${mm}:00`;
+        }
+      } catch (err) {
+        console.error('[wrapScheduler] failed to compute next local_time', guildId, err);
+      }
+
+      const updatePayload: any = {
+        posted: true,
+        wrap_up: historicalData,
+        wrap_artists: artistData,
+        wrap_tracks: trackData,
+        shame: shameRows,
+      };
+      if (nextLocalTime) {
+        updatePayload.local_time = nextLocalTime;
+      }
+
       await supabase
         .from('wrap_guilds')
-        .update({ 
-          posted: true, 
-          wrap_up: historicalData, // Now stores historical data with timestamps
-          wrap_artists: artistData, // Current day for new embeds
-          wrap_tracks: trackData,   // Current day for new embeds
-          shame: shameRows          // Current day shame list
-        })
+        .update(updatePayload)
         .eq('guild_id', guildId);
     } catch (err) {
       console.error('[wrapScheduler] failed to set posted flag or wrap snapshot for', guildId, err);
@@ -258,7 +305,7 @@ async function postWrapForGuild(guildId: string, client: Client, rest: REST) {
       } catch (err) {
         console.error('[wrapScheduler] failed to reset posted flag for', guildId, err);
       }
-    }, 60 * 60 * 1000); // 1 hour
+    }, 45 * 60 * 1000); // 45 minutes to match the interval set by the user
 
   } catch (err) {
     console.error('[wrapScheduler] failed to post wrap for guild', guildId, err);

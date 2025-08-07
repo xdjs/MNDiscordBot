@@ -19,6 +19,12 @@ export function registerPresenceListener(client: Client, rest: REST) {
         const trackId: string | undefined = (spot as any).syncId ?? undefined;
         const trackTitle: string = spot.details || 'Unknown title';
         console.log('[presence-wrap] extracted trackId:', trackId, 'details', spot.details);
+        // Skip Spotify updates that lack a trackId (likely podcasts). However, allow Apple Music items which don't expose IDs.
+        const isAppleMusic = /apple music|itunes/i.test(spot.name);
+        if (!trackId && !isAppleMusic) {
+          console.log('[presence-wrap] No trackId found for Spotify activity – skipping to avoid logging podcasts');
+          return;
+        }
         const raw = spot.state || spot.assets?.largeText?.split(' – ')[0] || '';
         const artistNames: string[] = raw   //artist names are split by commas, semicolons, ampersands, and spaces
           .split(/[,;&]|\s+&\s+/)

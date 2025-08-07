@@ -28,6 +28,18 @@ const commands = [
     .setDescription('Set your local time (HH:MM) for wrap-up posts')
     .setDMPermission(true)
     .addStringOption((opt) => opt.setName('time').setDescription('Your local time (24h HH:MM)').setRequired(true)),
+  new SlashCommandBuilder()
+    .setName('setinterval')
+    .setDescription('Set hourly interval (1–6) for wrap posts; >6 = daily')
+    .setDMPermission(false)
+    .addIntegerOption((opt) =>
+      opt
+        .setName('hours')
+        .setDescription('Number of hours between wraps (1–6); >6 = daily')
+        .setRequired(true)
+        .setMinValue(1)
+        .setMaxValue(24)
+    ),
 ].map((c) => c.toJSON());
 
 // Utility to strip Discord-generated fields so we can compare command definitions

@@ -10,12 +10,11 @@ export async function help(userId: string) {
   \n/nerdout - Get a fun fact about the song you\'re currently listening to (only visible to you).
   \n/eavesdrop user<username> - See what track a user is currently playing (only you can see the result).
   \nTo make this work please connect Spotify to your Discord (Settings → Connections) and enable the \"Display current activity\" option.\nStart playing a song and then type /nerdout to get a fun fact.
-
-  \n\n
+  \n
   \n**Admins only:**
   \n/wrap - The bot will start listening to the spotify status of all users in a server and post daily wrap ups as 9:00pm (set your local time using /setime).
   \n/unwrap - The bot will stop listening to the spotify status of all users in a server and stop posting daily wrap ups (only admins can use this).
-  \n/setime - enter your localtime so that the bot posts the wrap up at the correct time (format: hh:mm, example: 21:00)`;
+  \n/setime - enter your localtime so that the bot posts the wrap up at the correct time daily(format: hh:mm, example: 21:00)`;
   
   // Create (or fetch existing) DM channel with the user
   const dmRes = await fetch('https://discord.com/api/v10/users/@me/channels', {

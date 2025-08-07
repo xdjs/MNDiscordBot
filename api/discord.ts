@@ -1,22 +1,14 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { verifyKey, InteractionType, InteractionResponseType } from 'discord-interactions';
 import 'dotenv/config';
-
-
-
-
 import { help } from './commands/help.js';
 import { eavesdrop } from './commands/eavesdrop.js';
 import { nerdout } from './commands/nerdout.js';
-
-
-
-
-
 import { wrap as wrapCommand } from './commands/wrap.js';
 import { update as updateCommand } from './commands/update.js';
 import { unwrap as unwrapCommand } from './commands/unwrap.js';
 import { settime } from './commands/settime.js';
+import { setinterval } from './commands/setinterval.js';
 import { buildWrapPayload } from '../src/utils/wrapPaginator.js';
 import { fetchArtistLinksByName } from '../src/services/artistLinks.js';
 import { supabase } from './lib/supabase.js';
@@ -103,6 +95,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       case 'settime':
         response = await settime(interaction);
         break;
+      case 'setinterval':
+        response = await setinterval(interaction);
+        break;
       default:
         response = {
           type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
@@ -117,13 +112,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const custom = interaction.data.custom_id as string;
     if (custom.startsWith('wrap_prev_') || custom.startsWith('wrap_next_')) {
       // Parse arrow ID: wrap_prev_<date?>_<page>
+      //Date to correct page info 
       const parts = custom.split('_');
       const direction = parts[1] === 'prev' ? -1 : 1;
-      let dateParam: string | undefined;
+      let idParam: string | undefined;
       let currentPage = 0;
       if (parts.length === 4) {
         // wrap_prev_YYYY-MM-DD_page
-        dateParam = parts[2];
+        idParam = parts[2];
         currentPage = parseInt(parts[3], 10);
       } else if (parts.length === 3) {
         // Legacy format: wrap_prev_page
@@ -158,18 +154,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!data) {
         const snapRes = await supabase.from('wrap_guilds').select('wrap_up').eq('guild_id', guildId).maybeSingle();
         if (snapRes.data?.wrap_up && Array.isArray(snapRes.data.wrap_up)) {
-          // Check if wrap_up contains historical data (new format) or legacy data (old format)
           const wrapUpData = snapRes.data.wrap_up;
-          
-          if (wrapUpData.length > 0 && wrapUpData[0].date) {
-            // New historical format - try to find data from the embed's creation date
-            // For now, use the most recent entry as fallback
-            // TODO: We could extract embed timestamp to find exact historical match
-            const mostRecent = wrapUpData[wrapUpData.length - 1];
-            data = mostRecent?.data || [];
-          } else {
-            // Legacy format - direct array of user data
-            data = wrapUpData;
+          // 1. Try exact posted_at match when idParam looks like timestamp
+          if (idParam && idParam.includes('T')) {
+            const match = wrapUpData.find((e: any) => typeof e.posted_at === 'string' && e.posted_at.replace(/[^0-9A-Z]/gi, '') === idParam);
+            if (match) data = match.data;
+          }
+          // 2. Fallback to date-only match
+          if (!data && idParam && !idParam.includes('T')) {
+            const matchByDate = wrapUpData.find((e: any) => e.date === idParam);
+            if (matchByDate) data = matchByDate.data;
+          }
+          // 3. Final fallback to most recent snapshot or legacy array
+          if (!data) {
+            if (wrapUpData.length && wrapUpData[0].date) {
+              data = wrapUpData[wrapUpData.length - 1]?.data || [];
+            } else {
+              data = wrapUpData; // legacy flat array
+            }
           }
         }
       }
@@ -202,9 +204,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           return `${userMention} — 🎤 **Artist:** ${row.top_artist ?? 'N/A'}`;
         });
       } else if (isTrackEmbed) {
-        lines = rows.map((row) => {
+        lines = rows.map((row:any) => {
           const userMention = `<@${row.user_id}>`;
-          return `${userMention} — 🎵 **Track:** ${row.top_track ?? 'N/A'}`;
+          const url = row.spotify_track_id ? `https://open.spotify.com/track/${row.spotify_track_id}` : null;
+          const display = url ? `[${row.top_track ?? 'N/A'}](${url})` : (row.top_track ?? 'N/A');
+          return `${userMention} — 🎵 **Track:** ${display}`;
         });
       } else {
         // Legacy combined format -- used for old embeds before 2025-08-06
@@ -233,7 +237,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         embedType = 'track';
       }
 
-      let payload = buildWrapPayload(allLines, newPage, origEmbed?.title ?? 'Daily Wrap', userRowsPage, accent, embedType, dateParam);
+      let payload = buildWrapPayload(allLines, newPage, origEmbed?.title ?? 'Daily Wrap', userRowsPage, accent, embedType, idParam);
       
       // Add random emojis to button labels (buttons are already correctly generated)
       if (payload.components) {
@@ -294,7 +298,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    // --------Legacy user ID-based artist bio buttons (fallback) --------
+    // --------Legacy user ID-based artist bio buttons (fallback) -------- **ONLY DELETE AFTER A WEEK**
     if (custom.startsWith('wrap_pick_')) {
       const userId = custom.replace('wrap_pick_', '');
 
@@ -372,6 +376,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
        });
      }
 
+     // ^^^^^^^^^^^^^^Legacy user ID-based track bio buttons (fallback) ^^^^^^^^^^^^**ONLY DELETE AFTER A WEEK**^^^^^^^^^
+
     // ---- Direct track fact buttons ----
     if (custom.startsWith('wrap_track_')) {
       let trackName: string | undefined;
@@ -411,7 +417,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             .replace('{track}', trackName)
             .replace('{artist}', artistName ?? '');
         } else {
-          prompt = `Give me a true, lesser-known fun fact about the song "${trackName}"${artistName ? ` by ${artistName}` : ''}. Limit to 150 characters and cite the source in parentheses.`;
+          prompt = `Give me a true, lesser-known fun fact about the song "${trackName}"${artistName ? ` by ${artistName}` : ''}. Limit to 150 characters.`;
         }
 
         const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
@@ -437,7 +443,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    // ---- Legacy track fact buttons (user ID based) ----
+    // ---- Legacy track fact buttons (user ID based) ---- **ONLY DELETE AFTER A WEEK**
     if (custom.startsWith('wrap_track_user_') || (custom.startsWith('wrap_track_') && custom.replace('wrap_track_', '').startsWith('user_'))) {
       const userId = custom.replace('wrap_track_', '');
 
@@ -537,6 +543,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         data: { content: fact, flags: 64 },
       });
     }
+    // ^^^^^^^^^^^^^^Legacy track fact buttons (user ID based) ^^^^^^^^^^^^**ONLY DELETE AFTER A WEEK**^^^^^^^^^
   }
 
   res.status(400).send('Unhandled interaction type');
