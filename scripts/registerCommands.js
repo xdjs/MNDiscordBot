@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { REST, Routes, SlashCommandBuilder } from 'discord.js';
+import { REST, Routes, SlashCommandBuilder, ChannelType } from 'discord.js';
 
 const token = process.env.DISCORD_BOT_TOKEN;
 const clientId = process.env.DISCORD_CLIENT_ID;
@@ -32,8 +32,12 @@ const commands = [
     .setName('setchannel')
     .setDescription('Set the text channel for daily wrap posts')
     .setDMPermission(false)
-    .addStringOption((opt) =>
-      opt.setName('name').setDescription('Channel name (without #)').setRequired(true)
+    .addChannelOption((opt) =>
+      opt
+        .setName('channel')
+        .setDescription('Pick a text channel for wrap posts')
+        .setRequired(true)
+        .addChannelTypes(ChannelType.GuildText)
     ),
   new SlashCommandBuilder()
     .setName('setinterval')

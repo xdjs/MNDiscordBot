@@ -3,9 +3,9 @@ import { supabase } from '../lib/supabase.js';
 
 /**
  * /setchannel command – configure which text channel the daily wrap-up embeds
- * should be posted in.  The value stored is the text channel's name (case–insensitive).
+ * should be posted in. Accepts a Discord channel picker so we get the channel ID directly.
  *
- * The selected name is persisted to wrap_guilds.channel (text).
+ * The selected ID is persisted to wrap_guilds.channel (numeric / bigint).
  */
 export async function setchannel(interaction: any) {
   const guildId = interaction.guild_id as string | undefined;
@@ -30,24 +30,22 @@ export async function setchannel(interaction: any) {
     };
   }
 
-  // Expect a string option called "name"
+  // Expect a CHANNEL option named "channel"; Discord provides its ID as value
   const option = Array.isArray(interaction.data?.options) && interaction.data.options.length
     ? (interaction.data.options[0] as any)
     : null;
-  const valueRaw = option?.value;
-  const channelName = typeof valueRaw === 'string' ? valueRaw.trim() : '';
-
-  if (!channelName) {
+  const channelId = option?.value as string | undefined;
+  if (!channelId) {
     return {
       type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-      data: { content: 'Please provide the name of an existing text channel.', flags: 64 },
+      data: { content: 'Please pick a text channel from the selector.', flags: 64 },
     };
   }
 
   try {
     await supabase.from('wrap_guilds').upsert({
       guild_id: guildId,
-      channel: channelName,
+      channel: channelId,
     });
   } catch (err) {
     console.error('[setchannel] DB error', err);
@@ -59,6 +57,6 @@ export async function setchannel(interaction: any) {
 
   return {
     type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-    data: { content: `✅ Wrap-up posts will now target **#${channelName}**.`, flags: 64 },
+    data: { content: `✅ Wrap-up posts will now target <#${channelId}>.`, flags: 64 },
   };
 }

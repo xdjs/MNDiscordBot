@@ -77,29 +77,38 @@ async function pickRandomEmoji(): Promise<string> {
 async function postWrapForGuild(guildId: string, client: Client, rest: REST) {
   try {
     const guild = await client.guilds.fetch(guildId);
-    // Determine preferred channel name for this guild (DB override > env > default)
+    // Determine preferred channel id or name for this guild (DB override > env > default)
     let preferredName = 'wrap-up';
+    let configuredChannelId: string | null = null;
     try {
       const { data } = await supabase
         .from('wrap_guilds')
         .select('channel')
         .eq('guild_id', guildId);
       if (Array.isArray(data) && data.length && data[0]?.channel) {
-        preferredName = String(data[0].channel);
+        // If the DB value is numeric-looking, treat as channel ID; else name fallback
+        const stored = String(data[0].channel);
+        if (/^\d{10,}$/.test(stored)) configuredChannelId = stored;
+        else preferredName = stored;
       }
     } catch (err) {
       console.error('[wrapScheduler] failed to fetch channel pref for', guildId, err);
     }
-    // If DB had no value, fall back to env var
-    if (!preferredName && process.env.WRAP_CHANNEL_NAME) preferredName = process.env.WRAP_CHANNEL_NAME;
+    // If DB had no value, fall back to env var (name)
+    if (!configuredChannelId && !preferredName && process.env.WRAP_CHANNEL_NAME) preferredName = process.env.WRAP_CHANNEL_NAME;
     preferredName = preferredName.toLowerCase();
     let channelId: string | null = null;
 
-    const match = guild.channels.cache.find(
-      (c) => c.isTextBased() && (c as TextChannel).name.toLowerCase() === preferredName,
-    ) as TextChannel | undefined;
-
-    if (match && match.viewable) channelId = match.id;
+    if (configuredChannelId) {
+      const byId = guild.channels.cache.get(configuredChannelId) as TextChannel | undefined;
+      if (byId && byId.isTextBased() && byId.viewable) channelId = byId.id;
+    }
+    if (!channelId) {
+      const match = guild.channels.cache.find(
+        (c) => c.isTextBased() && (c as TextChannel).name.toLowerCase() === preferredName,
+      ) as TextChannel | undefined;
+      if (match && match.viewable) channelId = match.id;
+    }
 
     // Fallback to system channel, then first readable text channel
     if (!channelId) channelId = guild.systemChannelId ?? null;
