@@ -29,6 +29,13 @@ const commands = [
     .setDMPermission(true)
     .addStringOption((opt) => opt.setName('time').setDescription('Your local time (24h HH:MM)').setRequired(true)),
   new SlashCommandBuilder()
+    .setName('setchannel')
+    .setDescription('Set the text channel for daily wrap posts')
+    .setDMPermission(false)
+    .addStringOption((opt) =>
+      opt.setName('name').setDescription('Channel name (without #)').setRequired(true)
+    ),
+  new SlashCommandBuilder()
     .setName('setinterval')
     .setDescription('Set hourly interval (1–6) for wrap posts; >6 = daily')
     .setDMPermission(false)

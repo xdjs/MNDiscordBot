@@ -9,6 +9,7 @@ import { update as updateCommand } from './commands/update.js';
 import { unwrap as unwrapCommand } from './commands/unwrap.js';
 import { settime } from './commands/settime.js';
 import { setinterval } from './commands/setinterval.js';
+import { setchannel } from './commands/setchannel.js';
 import { buildWrapPayload } from '../src/utils/wrapPaginator.js';
 import { fetchArtistLinksByName } from '../src/services/artistLinks.js';
 import { supabase } from './lib/supabase.js';
@@ -97,6 +98,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         break;
       case 'setinterval':
         response = await setinterval(interaction);
+        break;
+      case 'setchannel':
+        response = await setchannel(interaction);
         break;
       default:
         response = {

@@ -77,8 +77,22 @@ async function pickRandomEmoji(): Promise<string> {
 async function postWrapForGuild(guildId: string, client: Client, rest: REST) {
   try {
     const guild = await client.guilds.fetch(guildId);
-    // Preferred channel by name via env var
-    const preferredName = (process.env.WRAP_CHANNEL_NAME ?? 'wrap-up').toLowerCase();
+    // Determine preferred channel name for this guild (DB override > env > default)
+    let preferredName = 'wrap-up';
+    try {
+      const { data } = await supabase
+        .from('wrap_guilds')
+        .select('channel')
+        .eq('guild_id', guildId);
+      if (Array.isArray(data) && data.length && data[0]?.channel) {
+        preferredName = String(data[0].channel);
+      }
+    } catch (err) {
+      console.error('[wrapScheduler] failed to fetch channel pref for', guildId, err);
+    }
+    // If DB had no value, fall back to env var
+    if (!preferredName && process.env.WRAP_CHANNEL_NAME) preferredName = process.env.WRAP_CHANNEL_NAME;
+    preferredName = preferredName.toLowerCase();
     let channelId: string | null = null;
 
     const match = guild.channels.cache.find(
