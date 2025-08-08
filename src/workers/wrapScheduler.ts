@@ -155,12 +155,24 @@ async function postWrapForGuild(guildId: string, client: Client, rest: REST) {
       .eq('guild_id', guildId);
 
     const rows = Array.isArray(data)
-      ? data.filter((r) => r.top_track !== null || r.top_artist !== null)
-        .map((r:any)=>{
-          const first = Array.isArray(r.tracks) && r.tracks.length ? r.tracks[0] : null;
-          const id = first ? (typeof first === 'string' ? first : first.id) : null;
-          return { ...r, spotify_track_id: id };
-        })
+      ? data
+          .filter((r) => r.top_track !== null || r.top_artist !== null)
+          .map((r: any) => {
+            // Try to resolve the Spotify ID that matches the computed top_track title
+            const topTitle = typeof r.top_track === 'string' ? r.top_track.split(' — ')[0]?.trim() : null;
+            let matchedId: string | null = null;
+            if (Array.isArray(r.tracks) && r.tracks.length) {
+              if (topTitle) {
+                const match = r.tracks.find((t: any) => (t?.title ?? '').trim().toLowerCase() === topTitle.toLowerCase());
+                matchedId = match?.id ?? null;
+              }
+              if (!matchedId) {
+                const first = r.tracks[0];
+                matchedId = first ? (typeof first === 'string' ? first : first.id ?? null) : null;
+              }
+            }
+            return { ...r, spotify_track_id: matchedId };
+          })
       : [];
     // Users with no listening data for the day – we'll "shame" them separately
     const shameRows = Array.isArray(data)
