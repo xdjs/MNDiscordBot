@@ -3,6 +3,9 @@ import { supabase } from '../../api/lib/supabase.js';
 import { wrapGuilds } from '../sessions/wrap.js';
 import { buildWrapPayload } from '../utils/wrapPaginator.js';
 
+// History table to store per-user snapshots per post. Configurable via env for flexibility.
+const HISTORY_TABLE = process.env.WRAP_HISTORY_TABLE || 'history';
+
 // -----------------------------------------------
 // Summary prompt selector based on user count
 // -----------------------------------------------
@@ -77,21 +80,72 @@ async function pickRandomEmoji(): Promise<string> {
 async function postWrapForGuild(guildId: string, client: Client, rest: REST) {
   try {
     const guild = await client.guilds.fetch(guildId);
-    // Preferred channel by name via env var
-    const preferredName = (process.env.WRAP_CHANNEL_NAME ?? 'wrap-up').toLowerCase();
+    // Determine preferred channel id or name for this guild (DB override > env > default)
+    let preferredName = 'wrap-up';
+    let configuredChannelId: string | null = null;
+    let hadConfiguredValue = false;
+    try {
+      const { data } = await supabase
+        .from('wrap_guilds')
+        .select('channel')
+        .eq('guild_id', guildId);
+      if (Array.isArray(data) && data.length && data[0]?.channel) {
+        hadConfiguredValue = true;
+        // Accept raw ID, <#ID> mention, or a channel name
+        const raw = String(data[0].channel).trim();
+        const idCandidate = raw.replace(/[^0-9]/g, '');
+        if (idCandidate.length >= 10) {
+          configuredChannelId = idCandidate;
+        } else {
+          preferredName = raw.replace(/^#/, '');
+        }
+      }
+    } catch (err) {
+      console.error('[wrapScheduler] failed to fetch channel pref for', guildId, err);
+    }
+    // If DB had no value, fall back to env var (name)
+    if (!configuredChannelId && !preferredName && process.env.WRAP_CHANNEL_NAME) preferredName = process.env.WRAP_CHANNEL_NAME;
+    preferredName = preferredName.toLowerCase();
     let channelId: string | null = null;
 
-    const match = guild.channels.cache.find(
-      (c) => c.isTextBased() && (c as TextChannel).name.toLowerCase() === preferredName,
-    ) as TextChannel | undefined;
-
-    if (match && match.viewable) channelId = match.id;
+    if (configuredChannelId) {
+      let byId = guild.channels.cache.get(configuredChannelId) as TextChannel | undefined;
+      if (!byId) {
+        try {
+          const fetched = await guild.channels.fetch(configuredChannelId);
+          byId = (fetched ?? undefined) as TextChannel | undefined;
+        } catch {}
+      }
+      if (byId && byId.isTextBased() && byId.viewable) channelId = byId.id;
+    }
+    if (!channelId) {
+      const match = guild.channels.cache.find(
+        (c) => c.isTextBased() && (c as TextChannel).name.toLowerCase() === preferredName,
+      ) as TextChannel | undefined;
+      if (match && match.viewable) channelId = match.id;
+    }
+    if (!channelId) {
+      try {
+        const all = await guild.channels.fetch();
+        const byName = all.find(
+          (c) => c?.isTextBased?.() && (c as TextChannel).name.toLowerCase() === preferredName,
+        ) as TextChannel | undefined;
+        if (byName && byName.viewable) channelId = byName.id;
+      } catch {}
+    }
 
     // Fallback to system channel, then first readable text channel
-    if (!channelId) channelId = guild.systemChannelId ?? null;
     if (!channelId) {
-      const firstText = guild.channels.cache.find((c) => c.isTextBased() && (c as TextChannel).viewable) as TextChannel | undefined;
-      if (firstText) channelId = firstText.id;
+      if (!hadConfiguredValue) {
+        channelId = guild.systemChannelId ?? null;
+        if (!channelId) {
+          const firstText = guild.channels.cache.find((c) => c.isTextBased() && (c as TextChannel).viewable) as TextChannel | undefined;
+          if (firstText) channelId = firstText.id;
+        }
+      } else {
+        console.warn('[wrapScheduler] Configured channel not found or not viewable; skipping post for guild', guildId);
+        return; // Do not post to a random channel if a specific one was configured
+      }
     }
     if (!channelId) return; // Cannot post
 
@@ -232,6 +286,32 @@ async function postWrapForGuild(guildId: string, client: Client, rest: REST) {
         data: rows,
         shame: shameRows,
       };
+    }
+
+    // Persist per-user history rows only if arrow pagination is needed (multi-page results)
+    if (needsSnapshot) {
+      try {
+        if (rows.length) {
+          const historyRows = rows.map((row: any) => {
+            const rawId = row.spotify_track_id;
+            const trackId = typeof rawId === 'string' || typeof rawId === 'number' ? String(rawId) : null;
+            return {
+              guild_id: guildId,
+              user_id: row.user_id,
+              posted_at: nowIso,
+              top_artist: row.top_artist,
+              top_track: row.top_track,
+              track_id: trackId,
+            };
+          });
+
+          await supabase
+            .from(HISTORY_TABLE)
+            .upsert(historyRows as any, { onConflict: 'guild_id,user_id,posted_at' } as any);
+        }
+      } catch (err) {
+        console.error('[wrapScheduler] failed to write history rows', guildId, err);
+      }
     }
 
     try {
