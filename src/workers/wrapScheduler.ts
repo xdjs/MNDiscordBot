@@ -83,12 +83,14 @@ async function postWrapForGuild(guildId: string, client: Client, rest: REST) {
     // Determine preferred channel id or name for this guild (DB override > env > default)
     let preferredName = 'wrap-up';
     let configuredChannelId: string | null = null;
+    let hadConfiguredValue = false;
     try {
       const { data } = await supabase
         .from('wrap_guilds')
         .select('channel')
         .eq('guild_id', guildId);
       if (Array.isArray(data) && data.length && data[0]?.channel) {
+        hadConfiguredValue = true;
         // Accept raw ID, <#ID> mention, or a channel name
         const raw = String(data[0].channel).trim();
         const idCandidate = raw.replace(/[^0-9]/g, '');
@@ -122,12 +124,28 @@ async function postWrapForGuild(guildId: string, client: Client, rest: REST) {
       ) as TextChannel | undefined;
       if (match && match.viewable) channelId = match.id;
     }
+    if (!channelId) {
+      try {
+        const all = await guild.channels.fetch();
+        const byName = all.find(
+          (c) => c?.isTextBased?.() && (c as TextChannel).name.toLowerCase() === preferredName,
+        ) as TextChannel | undefined;
+        if (byName && byName.viewable) channelId = byName.id;
+      } catch {}
+    }
 
     // Fallback to system channel, then first readable text channel
-    if (!channelId) channelId = guild.systemChannelId ?? null;
     if (!channelId) {
-      const firstText = guild.channels.cache.find((c) => c.isTextBased() && (c as TextChannel).viewable) as TextChannel | undefined;
-      if (firstText) channelId = firstText.id;
+      if (!hadConfiguredValue) {
+        channelId = guild.systemChannelId ?? null;
+        if (!channelId) {
+          const firstText = guild.channels.cache.find((c) => c.isTextBased() && (c as TextChannel).viewable) as TextChannel | undefined;
+          if (firstText) channelId = firstText.id;
+        }
+      } else {
+        console.warn('[wrapScheduler] Configured channel not found or not viewable; skipping post for guild', guildId);
+        return; // Do not post to a random channel if a specific one was configured
+      }
     }
     if (!channelId) return; // Cannot post
 
