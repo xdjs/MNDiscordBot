@@ -89,10 +89,14 @@ async function postWrapForGuild(guildId: string, client: Client, rest: REST) {
         .select('channel')
         .eq('guild_id', guildId);
       if (Array.isArray(data) && data.length && data[0]?.channel) {
-        // If the DB value is numeric-looking, treat as channel ID; else name fallback
-        const stored = String(data[0].channel);
-        if (/^\d{10,}$/.test(stored)) configuredChannelId = stored;
-        else preferredName = stored;
+        // Accept raw ID, <#ID> mention, or a channel name
+        const raw = String(data[0].channel).trim();
+        const idCandidate = raw.replace(/[^0-9]/g, '');
+        if (idCandidate.length >= 10) {
+          configuredChannelId = idCandidate;
+        } else {
+          preferredName = raw.replace(/^#/, '');
+        }
       }
     } catch (err) {
       console.error('[wrapScheduler] failed to fetch channel pref for', guildId, err);
@@ -103,7 +107,13 @@ async function postWrapForGuild(guildId: string, client: Client, rest: REST) {
     let channelId: string | null = null;
 
     if (configuredChannelId) {
-      const byId = guild.channels.cache.get(configuredChannelId) as TextChannel | undefined;
+      let byId = guild.channels.cache.get(configuredChannelId) as TextChannel | undefined;
+      if (!byId) {
+        try {
+          const fetched = await guild.channels.fetch(configuredChannelId);
+          byId = (fetched ?? undefined) as TextChannel | undefined;
+        } catch {}
+      }
       if (byId && byId.isTextBased() && byId.viewable) channelId = byId.id;
     }
     if (!channelId) {
