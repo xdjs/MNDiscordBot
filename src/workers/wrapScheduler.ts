@@ -3,6 +3,9 @@ import { supabase } from '../../api/lib/supabase.js';
 import { wrapGuilds } from '../sessions/wrap.js';
 import { buildWrapPayload } from '../utils/wrapPaginator.js';
 
+// History table to store per-user snapshots per post. Configurable via env for flexibility.
+const HISTORY_TABLE = process.env.WRAP_HISTORY_TABLE || 'history';
+
 // -----------------------------------------------
 // Summary prompt selector based on user count
 // -----------------------------------------------
@@ -255,6 +258,32 @@ async function postWrapForGuild(guildId: string, client: Client, rest: REST) {
         data: rows,
         shame: shameRows,
       };
+    }
+
+    // Persist per-user history rows only if arrow pagination is needed (multi-page results)
+    if (needsSnapshot) {
+      try {
+        if (rows.length) {
+          const historyRows = rows.map((row: any) => {
+            const rawId = row.spotify_track_id;
+            const trackId = typeof rawId === 'string' || typeof rawId === 'number' ? String(rawId) : null;
+            return {
+              guild_id: guildId,
+              user_id: row.user_id,
+              posted_at: nowIso,
+              top_artist: row.top_artist,
+              top_track: row.top_track,
+              track_id: trackId,
+            };
+          });
+
+          await supabase
+            .from(HISTORY_TABLE)
+            .upsert(historyRows as any, { onConflict: 'guild_id,user_id,posted_at' } as any);
+        }
+      } catch (err) {
+        console.error('[wrapScheduler] failed to write history rows', guildId, err);
+      }
     }
 
     try {

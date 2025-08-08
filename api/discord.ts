@@ -14,6 +14,9 @@ import { buildWrapPayload } from '../src/utils/wrapPaginator.js';
 import { fetchArtistLinksByName } from '../src/services/artistLinks.js';
 import { supabase } from './lib/supabase.js';
 
+// History table name for per-user snapshots per post
+const HISTORY_TABLE = process.env.WRAP_HISTORY_TABLE || 'history';
+
 // Helper function to get random emoji for buttons
 async function pickRandomEmoji(): Promise<string> {
   try {
@@ -139,8 +142,46 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       
       // Fetch appropriate snapshot based on embed type
       let data: any[] | null = null;
+
+      // 1) Try new per-user history table keyed by posted_at
+      try {
+        const { data: history } = await supabase
+          .from(HISTORY_TABLE)
+          .select('user_id, top_artist, top_track, track_id, posted_at')
+          .eq('guild_id', guildId)
+          .order('posted_at', { ascending: true });
+
+        if (Array.isArray(history) && history.length) {
+          // Group rows by posted_at
+          const byTs = history.reduce<Record<string, any[]>>((acc, row: any) => {
+            const key = row.posted_at as string;
+            (acc[key] ||= []).push(row);
+            return acc;
+          }, {});
+
+          // Prefer exact timestamp match (sanitized) when available
+          let tsKey: string | undefined;
+          if (idParam) {
+            for (const k of Object.keys(byTs)) {
+              const sanitized = k.replace(/[^0-9A-Z]/gi, '');
+              if (sanitized === idParam) { tsKey = k; break; }
+            }
+          }
+          // Fallback to most recent posted_at
+          if (!tsKey) {
+            const keys = Object.keys(byTs).sort();
+            tsKey = keys[keys.length - 1];
+          }
+          if (tsKey) {
+            data = byTs[tsKey];
+          }
+        }
+      } catch (e) {
+        // ignore and fall back
+      }
       
       if (isArtistEmbed) {
+        //old method
         // Try new artist-specific snapshot first
         const snapRes = await supabase.from('wrap_guilds').select('wrap_artists').eq('guild_id', guildId).maybeSingle();
         if (snapRes.data?.wrap_artists && Array.isArray(snapRes.data.wrap_artists)) {
@@ -210,7 +251,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       } else if (isTrackEmbed) {
         lines = rows.map((row:any) => {
           const userMention = `<@${row.user_id}>`;
-          const url = row.spotify_track_id ? `https://open.spotify.com/track/${row.spotify_track_id}` : null;
+          const trackId = (row as any).spotify_track_id ?? (row as any).track_id;
+          const url = trackId ? `https://open.spotify.com/track/${trackId}` : null;
           const display = url ? `[${row.top_track ?? 'N/A'}](${url})` : (row.top_track ?? 'N/A');
           return `${userMention} — 🎵 **Track:** ${display}`;
         });
