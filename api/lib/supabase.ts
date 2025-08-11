@@ -71,9 +71,14 @@ class UpdateBuilder extends Thenable<{ error?: any }> {
   protected async execute(): Promise<{ error?: any }> {
     const sets: string[] = [];
     const params: any[] = [];
+    const normalizeParam = (v: any) => {
+      if (v === null || v === undefined) return v;
+      if (typeof v === 'object') return JSON.stringify(v);
+      return v;
+    };
     Object.entries(this.payload).forEach(([k, v]) => {
       if (v === undefined) return; // skip undefined fields like optional snapshots
-      params.push(v);
+      params.push(normalizeParam(v));
       sets.push(`${k} = $${params.length}`);
     });
     const whereSql = this.wheres
@@ -96,10 +101,15 @@ class InsertBuilder extends Thenable<{ error?: any }> {
     if (!this.rows.length) return {};
     const cols = Array.from(new Set(this.rows.flatMap((r) => Object.keys(r).filter((k) => this.rows.some(rr => rr[k] !== undefined)) )));
     const params: any[] = [];
+    const normalizeParam = (v: any) => {
+      if (v === null || v === undefined) return v;
+      if (typeof v === 'object') return JSON.stringify(v);
+      return v;
+    };
     const valuesSql = this.rows
       .map((r) => {
         const placeholders = cols.map((c) => {
-          params.push(r[c]);
+          params.push(normalizeParam(r[c]));
           return `$${params.length}`;
         });
         return `(${placeholders.join(', ')})`;
