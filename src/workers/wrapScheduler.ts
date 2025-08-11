@@ -11,7 +11,7 @@ const HISTORY_TABLE = process.env.WRAP_HISTORY_TABLE || 'history';
 // -----------------------------------------------
 async function pickSummaryPrompt(count: number): Promise<string> {
   const { data, error } = await supabase
-    .from('Summary_prompts')
+    .from('bot_prompts')
     .select('slow, moderate, busy')
     .limit(1)
     .single();
@@ -34,7 +34,7 @@ async function pickSummaryPrompt(count: number): Promise<string> {
 // -----------------------------------------------
 async function pickShameTitle(): Promise<string> {
   const { data, error } = await supabase
-    .from('Summary_prompts')
+    .from('bot_prompts')
     .select('shaming')
     .limit(1)
     .single();
@@ -52,7 +52,7 @@ async function pickShameTitle(): Promise<string> {
 async function pickRandomEmoji(): Promise<string> {
   try {
     const { data, error } = await supabase
-      .from('Summary_prompts')
+      .from('bot_prompts')
       .select('emoji')
       .limit(1)
       .single();

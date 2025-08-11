@@ -3,24 +3,24 @@ import { fetchArtistLinksByName, ArtistLinks } from '../services/artistLinks.js'
 import { supabase } from '../../api/lib/supabase.js';
 
 // Cache prompts so we don't query DB on every call
-let summaryPrompts: { fun_fact?: string | null; bot_fact?: string | null } | null = null;
+let summaryPromptsCache: { fun_fact?: string | null; bot_fact?: string | null } | null = null;
 
 
-//pulls prompt from the database
-async function loadSummaryPrompts() {
-  if (summaryPrompts) return summaryPrompts;
+// Pull prompt from the database (returns a non-null object)
+async function loadSummaryPrompts(): Promise<{ fun_fact?: string | null; bot_fact?: string | null }> {
+  if (summaryPromptsCache) return summaryPromptsCache;
   try {
     const { data } = await supabase
-      .from('Summary_prompts')
+      .from('bot_prompts')
       .select('fun_fact, bot_fact')
       .limit(1)
       .single();
-    summaryPrompts = data ?? {};
+    summaryPromptsCache = data ?? {};
   } catch (err) {
-    console.error('[openai] failed to load Summary_prompts', err);
-    summaryPrompts = {};
+    console.error('[openai] failed to load bot_prompts', err);
+    summaryPromptsCache = {};
   }
-  return summaryPrompts;
+  return summaryPromptsCache ?? {};
 }
 
 export interface SongContext {

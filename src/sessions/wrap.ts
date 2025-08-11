@@ -1,5 +1,6 @@
 import { supabase } from '../../api/lib/supabase.js';
 import { Client } from 'discord.js';
+import { Client as PgClient } from 'pg';
 
 export const wrapGuilds = new Set<string>();
 
@@ -45,31 +46,48 @@ export function isWrapped(guildId: string): boolean {
 
 //initializes the realtime subscription for the wrap guilds
 export function subscribeWrapGuilds(client: Client) {
+  const pgUrl = process.env.SUPABASE_PG_URL || process.env.SUPABASE_ALT_URL;
+  if (!pgUrl) {
+    console.warn('[wrap] realtime disabled: no Postgres URL available for LISTEN/NOTIFY');
+    return;
+  }
   try {
-    supabase
-      .channel('wrap_guilds_channel')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'wrap_guilds' }, async (payload) => {
-        const row: any = payload.new ?? payload.old ?? {};
-        const guild_id = row.guild_id as string | undefined;
-        if (!guild_id) return;
-        if (payload.eventType === 'INSERT') {
-          wrapGuilds.add(guild_id);
-          console.log(`[wrap] Realtime: guild ${guild_id} added (tracking on)`);
-          // Prefetch members to ensure presence updates arrive
+    const pg = new PgClient({ connectionString: pgUrl, ssl: { rejectUnauthorized: false } });
+    pg.connect().then(async () => {
+      try {
+        await pg.query('LISTEN wrap_guilds_changed');
+        console.log('[wrap] Listening on channel wrap_guilds_changed');
+      } catch (err) {
+        console.error('[wrap] Failed to LISTEN wrap_guilds_changed', err);
+      }
+    }).catch((err) => console.error('[wrap] PG connect error', err));
+
+    pg.on('notification', async (msg) => {
+      if (msg.channel !== 'wrap_guilds_changed') return;
+      try {
+        const payload = msg.payload ? JSON.parse(msg.payload) : {};
+        const event = String(payload.event || '').toUpperCase();
+        const gid: string | undefined = payload.guild_id || payload.old_guild_id;
+        if (!gid) return;
+        if (event === 'INSERT') {
+          wrapGuilds.add(gid);
+          console.log(`[wrap] Realtime (PG): guild ${gid} added (tracking on)`);
           try {
-            const guild = await client.guilds.fetch(guild_id);
+            const guild = await client.guilds.fetch(gid);
             await guild.members.fetch({ withPresences: true });
-            console.log('[wrap] Prefetched members for guild', guild_id);
-          } catch (err) {
-            console.error('[wrap] Failed to prefetch members for guild', guild_id, err);
-          }
+          } catch {}
+        } else if (event === 'DELETE') {
+          wrapGuilds.delete(gid);
+          console.log(`[wrap] Realtime (PG): guild ${gid} removed (tracking off)`);
         }
-        if (payload.eventType === 'DELETE') {
-          wrapGuilds.delete(guild_id);
-          console.log(`[wrap] Realtime: guild ${guild_id} removed (tracking off)`);
-        }
-      })
-      .subscribe();
+      } catch (err) {
+        console.error('[wrap] notification parse error', err);
+      }
+    });
+
+    pg.on('error', (err) => {
+      console.error('[wrap] PG realtime error', err);
+    });
   } catch (err) {
     console.error('[wrap] realtime subscription failed', err);
   }

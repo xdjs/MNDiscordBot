@@ -81,7 +81,7 @@ export async function nerdout(interaction: any) {
     let promptBase: string | undefined;
     try {
       const { data } = await supabase
-        .from('Summary_prompts')
+        .from('bot_prompts')
         .select('fun_fact')
         .limit(1)
         .single();
