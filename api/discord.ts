@@ -284,13 +284,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       let payload = buildWrapPayload(allLines, newPage, origEmbed?.title ?? 'Daily Wrap', userRowsPage, accent, embedType, idParam);
-      
-      // Add random emojis to button labels (buttons are already correctly generated)
+
+      // Add random emojis only to selection buttons (exclude arrow navigation)
       if (payload.components) {
         for (const row of payload.components) {
           if (row.components) {
             for (const c of row.components) {
-              if (typeof c.label === 'string' && !c.label.includes('🔎')) {
+              const customId: string | undefined = (c as any)?.custom_id;
+              const isSelectionButton =
+                typeof customId === 'string' && (
+                  customId.startsWith('wrap_artist_') ||
+                  customId.startsWith('wrap_track_') ||
+                  customId.startsWith('wrap_pick_')
+                );
+              if (isSelectionButton && typeof c.label === 'string' && !c.label.includes('🔎')) {
                 const randomEmoji = await pickRandomEmoji();
                 c.label = `${c.label} ${randomEmoji}`;
               }

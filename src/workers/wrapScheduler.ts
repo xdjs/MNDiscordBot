@@ -178,7 +178,45 @@ async function postWrapForGuild(guildId: string, client: Client, rest: REST) {
     const shameRows = Array.isArray(data)
       ? data.filter((r) => r.top_track === null && r.top_artist === null)
       : [];
-    if (!rows.length) return;
+    if (!rows.length) {
+      // No data to post at this time. If an interval is configured, advance local_time
+      // so we try again at the next slot, without posting anything now.
+      try {
+        const { data: cfg } = await supabase
+          .from('wrap_guilds')
+          .select('local_time, interval')
+          .eq('guild_id', guildId)
+          .maybeSingle();
+
+        const intervalHoursRaw = (cfg as any)?.interval;
+        const intervalHours = intervalHoursRaw == null ? 0 : Number(intervalHoursRaw);
+        if (Number.isFinite(intervalHours) && intervalHours > 0) {
+          // Base time: existing local_time (if any) else current UTC time
+          let baseH: number;
+          let baseM: number;
+          if (cfg?.local_time) {
+            const [hStr, mStr] = cfg.local_time.slice(0, 5).split(':');
+            baseH = parseInt(hStr, 10);
+            baseM = parseInt(mStr, 10);
+          } else {
+            const nowUtc = new Date();
+            baseH = nowUtc.getUTCHours();
+            baseM = nowUtc.getUTCMinutes();
+          }
+          const newH = (baseH + intervalHours) % 24;
+          const hh = newH.toString().padStart(2, '0');
+          const mm = baseM.toString().padStart(2, '0');
+          const nextLocalTime = `${hh}:${mm}:00`;
+          await supabase
+            .from('wrap_guilds')
+            .update({ local_time: nextLocalTime })
+            .eq('guild_id', guildId);
+        }
+      } catch (err) {
+        console.error('[wrapScheduler] failed to advance local_time with no data for guild', guildId, err);
+      }
+      return;
+    }
 
         // Build separate lists for artists and tracks
     const artistLines = rows.map((row) => {
@@ -213,12 +251,19 @@ async function postWrapForGuild(guildId: string, client: Client, rest: REST) {
     const postedId = nowIso.replace(/[^0-9A-Z]/gi, ''); // safe custom_id fragment
     // Build payloads with unique postedId
     const artistPayload = buildWrapPayload(finalArtistLines, 0, 'Daily Top Artists', rows.slice(0, 5), accent, 'artist', postedId);
-    // Append random emoji to artist button labels
+    // Append random emoji only to selection buttons (exclude arrow navigation)
     if (artistPayload.components) {
       for (const row of artistPayload.components) {
         if (row.components) {
           for (const c of row.components) {
-            if (typeof c.label === 'string' && !c.label.includes('🔎')) {
+            const customId: string | undefined = (c as any)?.custom_id;
+            const isSelectionButton =
+              typeof customId === 'string' && (
+                customId.startsWith('wrap_artist_') ||
+                customId.startsWith('wrap_track_') ||
+                customId.startsWith('wrap_pick_')
+              );
+            if (isSelectionButton && typeof c.label === 'string' && !c.label.includes('🔎')) {
               const randomEmoji = await pickRandomEmoji();
               c.label = `${c.label} ${randomEmoji}`;
             }
@@ -228,12 +273,19 @@ async function postWrapForGuild(guildId: string, client: Client, rest: REST) {
     }
     const trackUserRows = rows.slice(0, 5).map((r) => ({ ...r, top_track: r.top_track, top_artist: r.top_artist }));
     const trackPayload = buildWrapPayload(finalTrackLines, 0, 'Daily Top Tracks', trackUserRows, accent, 'track', postedId);
-    // Add random emojis to track button labels
+    // Add random emojis only to selection buttons (exclude arrow navigation)
     if (trackPayload.components) {
       for (const row of trackPayload.components) {
         if (row.components) {
           for (const c of row.components) {
-            if (typeof c.label === 'string' && !c.label.includes('🔎')) {
+            const customId: string | undefined = (c as any)?.custom_id;
+            const isSelectionButton =
+              typeof customId === 'string' && (
+                customId.startsWith('wrap_artist_') ||
+                customId.startsWith('wrap_track_') ||
+                customId.startsWith('wrap_pick_')
+              );
+            if (isSelectionButton && typeof c.label === 'string' && !c.label.includes('🔎')) {
               const randomEmoji = await pickRandomEmoji();
               c.label = `${c.label} ${randomEmoji}`;
             }
