@@ -353,8 +353,9 @@ async function postWrapForGuild(guildId: string, client: Client, rest: REST) {
           .eq('guild_id', guildId)
           .maybeSingle();
 
-        const intervalHours = typeof cfg?.interval === 'number' ? cfg.interval : 0;
-        if (intervalHours && intervalHours > 0) {
+        const intervalHoursRaw = (cfg as any)?.interval;
+        const intervalHours = intervalHoursRaw == null ? 0 : Number(intervalHoursRaw);
+        if (Number.isFinite(intervalHours) && intervalHours > 0) {
           // Base time: existing local_time (if any) else current UTC time
           let baseH: number;
           let baseM: number;
