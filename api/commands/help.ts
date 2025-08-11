@@ -4,7 +4,7 @@ const BOT_TOKEN = process.env.DISCORD_BOT_TOKEN!;
 
 export async function help(userId: string) {
   const helpText = `For the best experience of this bot, turn on the Spotify status in your Discord status settings.
-  \n\n
+  \n
   \nHere are the available commands:
   \n/help - Show this help message
   \n/nerdout - Get a fun fact about the song you\'re currently listening to (only visible to you).

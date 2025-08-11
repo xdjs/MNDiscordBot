@@ -34,7 +34,7 @@ export async function update(guildId: string | undefined) {
   const artistLines: string[] = [];
 
   // Simple ranking by order (could sort by something later)
-  data.forEach((row:any, idx) => {
+  data.forEach((row: any, idx: number) => {
     const first = Array.isArray(row.tracks) && row.tracks.length ? row.tracks[0] : null;
     row.spotify_track_id = first ? (typeof first === 'string' ? first : first.id) : null;
     const mention = `<@${row.user_id}>`;

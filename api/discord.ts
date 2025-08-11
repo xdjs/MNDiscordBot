@@ -21,7 +21,7 @@ const HISTORY_TABLE = process.env.WRAP_HISTORY_TABLE || 'history';
 async function pickRandomEmoji(): Promise<string> {
   try {
     const { data, error } = await supabase
-      .from('Summary_prompts')
+      .from('bot_prompts')
       .select('emoji')
       .limit(1)
       .single();
@@ -448,7 +448,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         let trackPrompt: string | null = null;
         try {
           const { data } = await supabase
-            .from('Summary_prompts')
+            .from('bot_prompts')
             .select('track_fact')
             .limit(1)
             .single();
@@ -548,9 +548,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       // Load prompt template
       let trackPrompt: string | null = null;
-      try {
-        const { data } = await supabase
-          .from('Summary_prompts')
+        try {
+          const { data } = await supabase
+            .from('bot_prompts')
           .select('track_fact')
           .limit(1)
           .single();

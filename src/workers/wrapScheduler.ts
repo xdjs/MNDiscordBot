@@ -11,7 +11,7 @@ const HISTORY_TABLE = process.env.WRAP_HISTORY_TABLE || 'history';
 // -----------------------------------------------
 async function pickSummaryPrompt(count: number): Promise<string> {
   const { data, error } = await supabase
-    .from('Summary_prompts')
+    .from('bot_prompts')
     .select('slow, moderate, busy')
     .limit(1)
     .single();
@@ -34,7 +34,7 @@ async function pickSummaryPrompt(count: number): Promise<string> {
 // -----------------------------------------------
 async function pickShameTitle(): Promise<string> {
   const { data, error } = await supabase
-    .from('Summary_prompts')
+    .from('bot_prompts')
     .select('shaming')
     .limit(1)
     .single();
@@ -52,7 +52,7 @@ async function pickShameTitle(): Promise<string> {
 async function pickRandomEmoji(): Promise<string> {
   try {
     const { data, error } = await supabase
-      .from('Summary_prompts')
+      .from('bot_prompts')
       .select('emoji')
       .limit(1)
       .single();
@@ -155,12 +155,24 @@ async function postWrapForGuild(guildId: string, client: Client, rest: REST) {
       .eq('guild_id', guildId);
 
     const rows = Array.isArray(data)
-      ? data.filter((r) => r.top_track !== null || r.top_artist !== null)
-        .map((r:any)=>{
-          const first = Array.isArray(r.tracks) && r.tracks.length ? r.tracks[0] : null;
-          const id = first ? (typeof first === 'string' ? first : first.id) : null;
-          return { ...r, spotify_track_id: id };
-        })
+      ? data
+          .filter((r) => r.top_track !== null || r.top_artist !== null)
+          .map((r: any) => {
+            // Try to resolve the Spotify ID that matches the computed top_track title
+            const topTitle = typeof r.top_track === 'string' ? r.top_track.split(' — ')[0]?.trim() : null;
+            let matchedId: string | null = null;
+            if (Array.isArray(r.tracks) && r.tracks.length) {
+              if (topTitle) {
+                const match = r.tracks.find((t: any) => (t?.title ?? '').trim().toLowerCase() === topTitle.toLowerCase());
+                matchedId = match?.id ?? null;
+              }
+              if (!matchedId) {
+                const first = r.tracks[0];
+                matchedId = first ? (typeof first === 'string' ? first : first.id ?? null) : null;
+              }
+            }
+            return { ...r, spotify_track_id: matchedId };
+          })
       : [];
     // Users with no listening data for the day – we'll "shame" them separately
     const shameRows = Array.isArray(data)
@@ -341,8 +353,9 @@ async function postWrapForGuild(guildId: string, client: Client, rest: REST) {
           .eq('guild_id', guildId)
           .maybeSingle();
 
-        const intervalHours = typeof cfg?.interval === 'number' ? cfg.interval : 0;
-        if (intervalHours && intervalHours > 0) {
+        const intervalHoursRaw = (cfg as any)?.interval;
+        const intervalHours = intervalHoursRaw == null ? 0 : Number(intervalHoursRaw);
+        if (Number.isFinite(intervalHours) && intervalHours > 0) {
           // Base time: existing local_time (if any) else current UTC time
           let baseH: number;
           let baseM: number;

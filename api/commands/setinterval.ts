@@ -50,7 +50,7 @@ export async function setinterval(interaction: any) {
   try {
     await supabase.from('wrap_guilds').upsert({
       guild_id: guildId,
-      interval,
+      interval: interval,
       // keep existing local_time/started_at untouched – upsert will merge on PK (guild_id)
     });
   } catch (err) {
