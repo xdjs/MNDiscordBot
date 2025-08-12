@@ -351,7 +351,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    // --------Legacy user ID-based artist bio buttons (fallback) -------- **ONLY DELETE AFTER A WEEK**
+    // --------Legacy user ID-based artist bio buttons (fallback) 
     if (custom.startsWith('wrap_pick_')) {
       const userId = custom.replace('wrap_pick_', '');
 
@@ -429,7 +429,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
        });
      }
 
-     // ^^^^^^^^^^^^^^Legacy user ID-based track bio buttons (fallback) ^^^^^^^^^^^^**ONLY DELETE AFTER A WEEK**^^^^^^^^^
+     // ^^^^^^^^^^^^^^Legacy user ID-based track bio buttons (fallback) 
 
     // ---- Direct track fact buttons ----
     if (custom.startsWith('wrap_track_')) {
@@ -496,7 +496,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    // ---- Legacy track fact buttons (user ID based) ---- **ONLY DELETE AFTER A WEEK**
+    // ---- Legacy track fact buttons (user ID based) 
     if (custom.startsWith('wrap_track_user_') || (custom.startsWith('wrap_track_') && custom.replace('wrap_track_', '').startsWith('user_'))) {
       const userId = custom.replace('wrap_track_', '');
 
@@ -596,7 +596,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         data: { content: fact, flags: 64 },
       });
     }
-    // ^^^^^^^^^^^^^^Legacy track fact buttons (user ID based) ^^^^^^^^^^^^**ONLY DELETE AFTER A WEEK**^^^^^^^^^
+    // ^^^^^^^^^^^^^^Legacy track fact buttons (user ID based) 
   }
 
   res.status(400).send('Unhandled interaction type');

@@ -34,6 +34,7 @@ export async function startWrap(guildId: string): Promise<boolean> {
   }
 }
 
+//stops the wrap tracking for the guild (unwrap)
 export async function stopWrap(guildId: string): Promise<void> {
   wrapGuilds.delete(guildId);
   await supabase.from('wrap_guilds').delete().eq('guild_id', guildId);

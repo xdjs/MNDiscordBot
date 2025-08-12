@@ -4,6 +4,7 @@ import { Pool } from 'pg';
 // If you still have SUPABASE_URL + keys, the old client can be used.
 // For direct Postgres access, set SUPABASE_PG_URL (pooled URL preferred) and we use a
 // minimal compatibility shim that supports the subset of methods used in this app.
+//Has a role in the database such as "mn_bot"
 
 const PG_URL = process.env.SUPABASE_PG_URL || process.env.SUPABASE_ALT_URL;
 
