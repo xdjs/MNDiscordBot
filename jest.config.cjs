@@ -17,4 +17,5 @@ module.exports = {
     '^(\\.{1,2}/.*)\\.js$': '$1',
   },
   transformIgnorePatterns: ['/node_modules/'],
+  testPathIgnorePatterns: ['<rootDir>/dist/'],
 };

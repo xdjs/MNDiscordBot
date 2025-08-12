@@ -1,9 +1,26 @@
 import { InteractionResponseType } from 'discord-interactions';
 
 jest.mock('../../src/utils/openai.js', () => ({ getFunFact: jest.fn(async () => 'Fun fact!') }));
+jest.mock('../../api/lib/supabase.js', () => ({
+  supabase: {
+    from: jest.fn(() => ({
+      select: jest.fn(() => ({
+        limit: jest.fn(() => ({ single: jest.fn(async () => ({ data: { fun_fact: '{artist} cool' } })) })),
+      })),
+    })),
+  },
+}));
 
-jest.mock('@supabase/supabase-js', () => ({
-  createClient: () => ({ from: () => ({ select: () => ({ limit: () => ({ single: () => ({ data: { fun_fact: '{artist} cool' } }) }) }) }) }),
+jest.mock('../../api/lib/supabase.js', () => ({
+  supabase: {
+    from: jest.fn(() => ({
+      select: jest.fn(() => ({
+        limit: jest.fn(() => ({
+          single: jest.fn(async () => ({ data: { fun_fact: '{artist} cool' } })),
+        })),
+      })),
+    })),
+  },
 }));
 
 let mockActivities: any[] = [];

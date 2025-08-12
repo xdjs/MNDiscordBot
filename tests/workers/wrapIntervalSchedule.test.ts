@@ -15,45 +15,29 @@ jest.spyOn(global, 'setTimeout').mockImplementation(() => 0);
 // ------------ dynamic mocks ---------------
 let selectRows: any[] = [];
 const updateWrapMock = jest.fn().mockReturnValue({ eq: jest.fn() });
-const maybeSingleMock = jest.fn();
 
 const fromMock = jest.fn().mockImplementation((table: string) => {
   if (table === 'wrap_guilds') {
     return {
       select: jest.fn(() => ({
-        eq: jest.fn(() => ({
-          maybeSingle: jest.fn().mockResolvedValue({ data: { wrap_up: [], local_time: '04:00:00', interval: 3 } }),
-        })),
+        eq: jest.fn(() => ({ maybeSingle: jest.fn().mockResolvedValue({ data: { wrap_up: [], local_time: '04:00:00', interval: 3 } }) })),
         error: null,
         data: selectRows,
       })),
       update: updateWrapMock,
     } as any;
   }
-  if (table === 'Summary_prompts') {
+  if (table === 'bot_prompts') {
     return {
       select: jest.fn(() => ({
-        limit: jest.fn(() => ({
-          single: jest.fn().mockResolvedValue({ data: { prompt: ['Mock Prompt'], emoji: ['😀'] }, error: null }),
-        })),
-      })) as any,
+        limit: jest.fn(() => ({ single: jest.fn().mockResolvedValue({ data: { slow: ['a'], moderate: ['b'], busy: ['c'], emoji: ['😀'], shaming: ['x'] } }) })),
+      })),
     } as any;
   }
   if (table === 'user_tracks') {
     return {
       select: jest.fn(() => ({
-        eq: jest.fn().mockReturnValue({
-          data: [
-            {
-              user_id: 'u1',
-              username: 'User',
-              top_track: 'Song',
-              top_artist: 'Artist',
-              tracks: [{ id: 't1' }],
-              last_updated: '2025-01-01T00:00:00Z',
-            },
-          ],
-        }),
+        eq: jest.fn(() => ({ data: [{ user_id: 'u1', username: 'User', top_track: 'Song', top_artist: 'Artist', tracks: [{ id: 't1' }], last_updated: '2025-01-01T00:00:00Z' }] })),
       })),
       update: jest.fn(() => ({ eq: jest.fn().mockResolvedValue({}) })),
     } as any;
@@ -110,8 +94,7 @@ describe('Scheduler interval adjustment', () => {
       { guild_id: 'guild1', local_time: '04:00', posted: false },
     ];
 
-    // maybeSingle should return current local_time and interval 3
-    maybeSingleMock.mockResolvedValue({ data: { local_time: '04:00:00', interval: 3 } });
+    // maybeSingle is mocked in fromMock to return interval 3
   });
 
   it('advances local_time by interval hours', async () => {

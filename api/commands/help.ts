@@ -11,6 +11,11 @@ export async function help(userId: string) {
   \n/eavesdrop user<username> - See what track a user is currently playing (only you can see the result).
   \nTo make this work please connect Spotify to your Discord (Settings → Connections) and enable the \"Display current activity\" option.\nStart playing a song and then type /nerdout to get a fun fact.
   \n
+  \n**Experemental commands:**
+  \n/connect - Make the bot join your voice channel (user must be in a voice channel).
+  \n/fact - Get a fun fact about the song you're currently listening to said out loud by the bot(only visible to you).
+  \n/disconnect - Make the bot leave your voice channel.
+  \n
   \n**Admins only:**
   \n/wrap - The bot will start listening to the spotify status of all users in a server and post daily wrap ups as 9:00pm (set your local time using /settime).
   \n/unwrap - The bot will stop listening to the spotify status of all users in a server and stop posting daily wrap ups.

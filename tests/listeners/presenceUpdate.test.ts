@@ -5,15 +5,23 @@ import { EventEmitter } from 'events';
 
 // Capture Supabase call chains
 const upsertMock = jest.fn().mockResolvedValue({});
-const selectMock = jest.fn().mockReturnThis();
-const eqMock = jest.fn().mockReturnThis();
-const maybeSingleMock = jest.fn().mockResolvedValue({ data: null });
-
-const fromMock = jest.fn().mockReturnValue({
-  select: selectMock,
-  eq: eqMock,
-  maybeSingle: maybeSingleMock,
-  upsert: upsertMock,
+const fromMock = jest.fn().mockImplementation((table: string) => {
+  if (table === 'user_tracks') {
+    // Build chain: select().eq().eq().maybeSingle()
+    const third = { maybeSingle: jest.fn().mockResolvedValue({ data: null }) } as any;
+    const second = { eq: jest.fn(() => third) } as any;
+    const first = { eq: jest.fn(() => second) } as any;
+    return {
+      select: jest.fn(() => first),
+      upsert: upsertMock,
+    } as any;
+  }
+  return {
+    select: jest.fn(() => ({
+      eq: jest.fn(() => ({ maybeSingle: jest.fn().mockResolvedValue({ data: null }) })),
+    })),
+    upsert: upsertMock,
+  } as any;
 });
 
 jest.mock('../../api/lib/supabase.js', () => ({
@@ -23,6 +31,10 @@ jest.mock('../../api/lib/supabase.js', () => ({
 // Mock isWrapped to always return true so the listener logic proceeds
 jest.mock('../../src/sessions/wrap.js', () => ({
   isWrapped: jest.fn(() => true),
+}));
+// Avoid async network/log noise from Spotify util, return a stable artist list
+jest.mock('../../src/utils/spotify.js', () => ({
+  fetchArtistsByTrackId: jest.fn(async () => ['Artist A']),
 }));
 
 // Mock minimal discord.js surface needed by presenceUpdate listener
@@ -92,6 +104,7 @@ describe('presenceUpdate listener', () => {
 
     emitPresence(activity);
     await new Promise((r) => setImmediate(r));
+    await new Promise((r) => setTimeout(r, 0));
 
     expect(upsertMock).toHaveBeenCalledTimes(1);
     const arg = upsertMock.mock.calls[0][0];
@@ -109,6 +122,7 @@ describe('presenceUpdate listener', () => {
 
     emitPresence(activity);
     await new Promise((r) => setImmediate(r));
+    await new Promise((r) => setTimeout(r, 0));
 
     expect(upsertMock).toHaveBeenCalledTimes(1);
   });

@@ -23,16 +23,16 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">31.27% </span>
+                <span class="strong">31.33% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>91/291</span>
+                <span class='fraction'>94/300</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">19.41% </span>
+                <span class="strong">19.13% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>40/206</span>
+                <span class='fraction'>40/209</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">32.96% </span>
+                <span class="strong">32.97% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>90/273</span>
+                <span class='fraction'>93/282</span>
             </div>
         
             
@@ -671,7 +671,22 @@
 <a name='L606'></a><a href='#L606'>606</a>
 <a name='L607'></a><a href='#L607'>607</a>
 <a name='L608'></a><a href='#L608'>608</a>
-<a name='L609'></a><a href='#L609'>609</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L609'></a><a href='#L609'>609</a>
+<a name='L610'></a><a href='#L610'>610</a>
+<a name='L611'></a><a href='#L611'>611</a>
+<a name='L612'></a><a href='#L612'>612</a>
+<a name='L613'></a><a href='#L613'>613</a>
+<a name='L614'></a><a href='#L614'>614</a>
+<a name='L615'></a><a href='#L615'>615</a>
+<a name='L616'></a><a href='#L616'>616</a>
+<a name='L617'></a><a href='#L617'>617</a>
+<a name='L618'></a><a href='#L618'>618</a>
+<a name='L619'></a><a href='#L619'>619</a>
+<a name='L620'></a><a href='#L620'>620</a>
+<a name='L621'></a><a href='#L621'>621</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
@@ -753,6 +768,9 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -760,6 +778,12 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -1291,6 +1315,9 @@ import { unwrap as unwrapCommand } from './commands/unwrap.js';
 import { settime } from './commands/settime.js';
 import { setinterval } from './commands/setinterval.js';
 import { setchannel } from './commands/setchannel.js';
+import { connect } from './commands/connect.js';
+import { fact } from './commands/fact.js';
+import { disconnect } from './commands/disconnect.js';
 import { buildWrapPayload } from '../src/utils/wrapPaginator.js';
 import { fetchArtistLinksByName } from '../src/services/artistLinks.js';
 import { supabase } from './lib/supabase.js';
@@ -1360,6 +1387,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       case 'nerdout':
 <span class="cstat-no" title="statement not covered" >        response = await nerdout(interaction);</span>
 <span class="cstat-no" title="statement not covered" >        break;</span>
+      case 'fact':
+<span class="cstat-no" title="statement not covered" >        response = await fact(interaction);</span>
+<span class="cstat-no" title="statement not covered" >        break;</span>
 &nbsp;
       case 'eavesdrop':
 <span class="cstat-no" title="statement not covered" >        response = await eavesdrop(interaction);</span>
@@ -1385,6 +1415,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 <span class="cstat-no" title="statement not covered" >        break;</span>
       case 'setchannel':
 <span class="cstat-no" title="statement not covered" >        response = await setchannel(interaction);</span>
+<span class="cstat-no" title="statement not covered" >        break;</span>
+      case 'connect':
+<span class="cstat-no" title="statement not covered" >        response = await connect(interaction);</span>
+<span class="cstat-no" title="statement not covered" >        break;</span>
+      case 'disconnect':
+<span class="cstat-no" title="statement not covered" >        response = await disconnect(interaction);</span>
 <span class="cstat-no" title="statement not covered" >        break;</span>
       default:
 <span class="cstat-no" title="statement not covered" >        response = {</span>
@@ -1632,7 +1668,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 &nbsp;
-    // --------Legacy user ID-based artist bio buttons (fallback) -------- **ONLY DELETE AFTER A WEEK**
+    // --------Legacy user ID-based artist bio buttons (fallback) 
 <span class="cstat-no" title="statement not covered" >    <span class="missing-if-branch" title="if path not taken" >I</span>if (custom.startsWith('wrap_pick_')) {</span>
       const userId = <span class="cstat-no" title="statement not covered" >custom.replace('wrap_pick_', '');</span>
 &nbsp;
@@ -1710,7 +1746,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
        });
      }
 &nbsp;
-     // ^^^^^^^^^^^^^^Legacy user ID-based track bio buttons (fallback) ^^^^^^^^^^^^**ONLY DELETE AFTER A WEEK**^^^^^^^^^
+     // ^^^^^^^^^^^^^^Legacy user ID-based track bio buttons (fallback) 
 &nbsp;
     // ---- Direct track fact buttons ----
 <span class="cstat-no" title="statement not covered" >    <span class="missing-if-branch" title="if path not taken" >I</span>if (custom.startsWith('wrap_track_')) {</span>
@@ -1777,7 +1813,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 &nbsp;
-    // ---- Legacy track fact buttons (user ID based) ---- **ONLY DELETE AFTER A WEEK**
+    // ---- Legacy track fact buttons (user ID based) 
 <span class="cstat-no" title="statement not covered" >    <span class="missing-if-branch" title="if path not taken" >I</span>if (custom.startsWith('wrap_track_user_') || (custom.startsWith('wrap_track_') &amp;&amp; custom.replace('wrap_track_', '').startsWith('user_'))) {</span>
       const userId = <span class="cstat-no" title="statement not covered" >custom.replace('wrap_track_', '');</span>
 &nbsp;
@@ -1877,7 +1913,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         data: { content: fact, flags: 64 },
       });
     }
-    // ^^^^^^^^^^^^^^Legacy track fact buttons (user ID based) ^^^^^^^^^^^^**ONLY DELETE AFTER A WEEK**^^^^^^^^^
+    // ^^^^^^^^^^^^^^Legacy track fact buttons (user ID based) 
   }
 &nbsp;
 <span class="cstat-no" title="statement not covered" >  res.status(400).send('Unhandled interaction type');</span>
@@ -1894,7 +1930,7 @@ export const config = {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-08-11T23:13:29.629Z
+                at 2025-08-12T18:42:08.578Z
             </div>
         <script src="../prettify.js"></script>
         <script>

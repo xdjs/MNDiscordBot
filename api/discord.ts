@@ -10,6 +10,9 @@ import { unwrap as unwrapCommand } from './commands/unwrap.js';
 import { settime } from './commands/settime.js';
 import { setinterval } from './commands/setinterval.js';
 import { setchannel } from './commands/setchannel.js';
+import { connect } from './commands/connect.js';
+import { fact } from './commands/fact.js';
+import { disconnect } from './commands/disconnect.js';
 import { buildWrapPayload } from '../src/utils/wrapPaginator.js';
 import { fetchArtistLinksByName } from '../src/services/artistLinks.js';
 import { supabase } from './lib/supabase.js';
@@ -79,6 +82,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       case 'nerdout':
         response = await nerdout(interaction);
         break;
+      case 'fact':
+        response = await fact(interaction);
+        break;
 
       case 'eavesdrop':
         response = await eavesdrop(interaction);
@@ -104,6 +110,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         break;
       case 'setchannel':
         response = await setchannel(interaction);
+        break;
+      case 'connect':
+        response = await connect(interaction);
+        break;
+      case 'disconnect':
+        response = await disconnect(interaction);
         break;
       default:
         response = {

@@ -23,9 +23,9 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">4.61% </span>
+                <span class="strong">6.15% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>6/130</span>
+                <span class='fraction'>8/130</span>
             </div>
         
             
@@ -37,16 +37,16 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">2.38% </span>
+                <span class="strong">4.76% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>1/42</span>
+                <span class='fraction'>2/42</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">5.66% </span>
+                <span class="strong">7.54% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>6/106</span>
+                <span class='fraction'>8/106</span>
             </div>
         
             
@@ -253,13 +253,15 @@
 <a name='L188'></a><a href='#L188'>188</a>
 <a name='L189'></a><a href='#L189'>189</a>
 <a name='L190'></a><a href='#L190'>190</a>
-<a name='L191'></a><a href='#L191'>191</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
+<a name='L191'></a><a href='#L191'>191</a>
+<a name='L192'></a><a href='#L192'>192</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -406,7 +408,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -437,11 +439,11 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import 'dotenv/config';
 import { Pool } from 'pg';
@@ -449,8 +451,9 @@ import { Pool } from 'pg';
 // If you still have SUPABASE_URL + keys, the old client can be used.
 // For direct Postgres access, set SUPABASE_PG_URL (pooled URL preferred) and we use a
 // minimal compatibility shim that supports the subset of methods used in this app.
+//Has a role in the database such as "mn_bot"
 &nbsp;
-const PG_URL = process.env.SUPABASE_PG_URL || process.env.SUPABASE_ALT_URL;
+const PG_URL = process.env.SUPABASE_PG_URL || <span class="branch-1 cbranch-no" title="branch not covered" >process.env.SUPABASE_ALT_URL;</span>
 &nbsp;
 type EqCond = { column: string; value: any };
 &nbsp;
@@ -595,8 +598,8 @@ function <span class="fstat-no" title="function not covered" >conflictColsFor(</
   }
 }
 &nbsp;
-function <span class="fstat-no" title="function not covered" >buildShim(</span>pool: Pool) {
-<span class="cstat-no" title="statement not covered" >  return {</span>
+function buildShim(pool: Pool) {
+  return {
 <span class="fstat-no" title="function not covered" >    from(</span>table: string) {
 <span class="cstat-no" title="statement not covered" >      return {</span>
 <span class="fstat-no" title="function not covered" >        select(</span>columns: string) {
@@ -626,12 +629,12 @@ function <span class="fstat-no" title="function not covered" >buildShim(</span>p
 }
 &nbsp;
 export const supabase = (() =&gt; {
-  <span class="missing-if-branch" title="if path not taken" >I</span>if (PG_URL) {
-    const pool = <span class="cstat-no" title="statement not covered" >new Pool({ connectionString: PG_URL, ssl: { rejectUnauthorized: false }, max: 10, idleTimeoutMillis: 5_000 });</span>
-<span class="cstat-no" title="statement not covered" >    return buildShim(pool);</span>
+  if (PG_URL) {
+    const pool = new Pool({ connectionString: PG_URL, ssl: { rejectUnauthorized: false }, max: 10, idleTimeoutMillis: 5_000 });
+    return buildShim(pool);
   }
   // Fallback: throw to indicate missing configuration
-  throw new Error('SUPABASE_PG_URL (or SUPABASE_ALT_URL) not set. Configure a Postgres connection string.');
+<span class="cstat-no" title="statement not covered" >  throw new Error('SUPABASE_PG_URL (or SUPABASE_ALT_URL) not set. Configure a Postgres connection string.');</span>
 })();
 &nbsp;</pre></td></tr></table></pre>
 
@@ -640,7 +643,7 @@ export const supabase = (() =&gt; {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-08-11T23:13:29.629Z
+                at 2025-08-12T18:42:08.578Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

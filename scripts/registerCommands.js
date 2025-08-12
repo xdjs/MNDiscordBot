@@ -20,6 +20,18 @@ const commands = [
     .setName('eavesdrop')
     .setDescription('Show what a user is currently listening to (ephemeral)')
     .addUserOption((opt) => opt.setName('user').setDescription('Target user').setRequired(true)),
+  new SlashCommandBuilder()
+    .setName('connect')
+    .setDescription('Have the bot join your current voice channel')
+    .setDMPermission(false),
+  new SlashCommandBuilder()
+    .setName('fact')
+    .setDescription('Speak a fun music fact in your voice channel (ephemeral ack)')
+    .setDMPermission(false),
+  new SlashCommandBuilder()
+    .setName('disconnect')
+    .setDescription('Disconnect the bot from the voice channel')
+    .setDMPermission(false),
   new SlashCommandBuilder().setName('wrap').setDescription('Start daily Spotify wrap tracking for this server').setDMPermission(false),
   new SlashCommandBuilder().setName('update').setDescription('Show current wrap standings for this server').setDMPermission(false),
   new SlashCommandBuilder().setName('unwrap').setDescription('Stop daily Spotify wrap tracking for this server').setDMPermission(false),
