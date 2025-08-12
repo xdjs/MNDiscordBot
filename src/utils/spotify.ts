@@ -1,3 +1,6 @@
+
+//File for getting the correct list of artists from spotify
+
 import 'dotenv/config';
 
 interface TokenCache {

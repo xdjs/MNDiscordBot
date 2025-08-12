@@ -284,13 +284,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       let payload = buildWrapPayload(allLines, newPage, origEmbed?.title ?? 'Daily Wrap', userRowsPage, accent, embedType, idParam);
-      
-      // Add random emojis to button labels (buttons are already correctly generated)
+
+      // Add random emojis only to selection buttons (exclude arrow navigation)
       if (payload.components) {
         for (const row of payload.components) {
           if (row.components) {
             for (const c of row.components) {
-              if (typeof c.label === 'string' && !c.label.includes('🔎')) {
+              const customId: string | undefined = (c as any)?.custom_id;
+              const isSelectionButton =
+                typeof customId === 'string' && (
+                  customId.startsWith('wrap_artist_') ||
+                  customId.startsWith('wrap_track_') ||
+                  customId.startsWith('wrap_pick_')
+                );
+              if (isSelectionButton && typeof c.label === 'string' && !c.label.includes('🔎')) {
                 const randomEmoji = await pickRandomEmoji();
                 c.label = `${c.label} ${randomEmoji}`;
               }
@@ -344,7 +351,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    // --------Legacy user ID-based artist bio buttons (fallback) -------- **ONLY DELETE AFTER A WEEK**
+    // --------Legacy user ID-based artist bio buttons (fallback) 
     if (custom.startsWith('wrap_pick_')) {
       const userId = custom.replace('wrap_pick_', '');
 
@@ -422,7 +429,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
        });
      }
 
-     // ^^^^^^^^^^^^^^Legacy user ID-based track bio buttons (fallback) ^^^^^^^^^^^^**ONLY DELETE AFTER A WEEK**^^^^^^^^^
+     // ^^^^^^^^^^^^^^Legacy user ID-based track bio buttons (fallback) 
 
     // ---- Direct track fact buttons ----
     if (custom.startsWith('wrap_track_')) {
@@ -489,7 +496,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    // ---- Legacy track fact buttons (user ID based) ---- **ONLY DELETE AFTER A WEEK**
+    // ---- Legacy track fact buttons (user ID based) 
     if (custom.startsWith('wrap_track_user_') || (custom.startsWith('wrap_track_') && custom.replace('wrap_track_', '').startsWith('user_'))) {
       const userId = custom.replace('wrap_track_', '');
 
@@ -589,7 +596,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         data: { content: fact, flags: 64 },
       });
     }
-    // ^^^^^^^^^^^^^^Legacy track fact buttons (user ID based) ^^^^^^^^^^^^**ONLY DELETE AFTER A WEEK**^^^^^^^^^
+    // ^^^^^^^^^^^^^^Legacy track fact buttons (user ID based) 
   }
 
   res.status(400).send('Unhandled interaction type');
