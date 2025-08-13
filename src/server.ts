@@ -5,6 +5,9 @@ import '../render/listenReceiver.js';
 
 const app = express();
 
+// Serve static landing page and assets from the top-level `public` directory
+app.use(express.static('public'));
+
 // Discord interactions endpoint – needs raw body for signature verification
 app.post('/api/discord', (req, res) => {
   // Pass the raw request stream directly; discordHandler handles buffering & signature.

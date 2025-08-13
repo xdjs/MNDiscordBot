@@ -9,6 +9,7 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "vercel-build": "node scripts/registerCommands.js && mkdir -p public && echo 'placeholder' > public/.vercelkeep",
+    "build:public": "mkdir -p public",
     "register:commands": "node scripts/registerCommands.js",
     "tests": "jest",
     "tests:watch": "jest --watch",
