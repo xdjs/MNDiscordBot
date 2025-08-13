@@ -30,6 +30,8 @@ COPY . .
 # Build application
 RUN npm run build
 
+# Ensure public assets (for landing page) are copied if they exist
+
 # Remove development dependencies
 RUN npm prune --omit=dev
 
