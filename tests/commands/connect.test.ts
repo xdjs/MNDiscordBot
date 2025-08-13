@@ -5,6 +5,11 @@ jest.mock('../../src/utils/voiceIdle.js', () => ({
   clearIdleDisconnect: jest.fn(),
 }));
 
+// Avoid real network calls from background follow-up edits
+jest.mock('../../src/utils/discord.js', () => ({
+  patchOriginal: jest.fn(),
+}));
+
 // Minimal mocks for discord.js and @discordjs/voice
 let mockMember: any = {};
 let mockGuild: any = {};
@@ -51,17 +56,15 @@ describe('/connect command', () => {
   it('prompts user to join VC if not in one', async () => {
     mockMember.voice.channel = null;
     const res = await connect({ guild_id: 'g1', member: { user: { id: 'u1' } } });
-    expect(res.type).toBe(InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE);
+    expect(res.type).toBe(InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE);
     expect(res.data.flags).toBe(64);
-    expect(res.data.content).toMatch(/Join a voice channel/);
   });
 
   it('connects to user VC and acknowledges', async () => {
     mockMember.voice.channel = { id: 'vc1', name: 'General', type: 2 };
     const res = await connect({ guild_id: 'g1', member: { user: { id: 'u1' } } });
-    expect(res.type).toBe(InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE);
+    expect(res.type).toBe(InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE);
     expect(res.data.flags).toBe(64);
-    expect(res.data.content).toContain('Connected to');
   });
 });
 

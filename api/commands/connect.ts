@@ -8,6 +8,7 @@ import {
 } from '@discordjs/voice';
 import 'dotenv/config';
 import { scheduleIdleDisconnect, clearIdleDisconnect } from '../../src/utils/voiceIdle.js';
+import { patchOriginal } from '../../src/utils/discord.js';
 
 let client: Client | undefined;
 let readyPromise: Promise<void> | undefined;
@@ -46,73 +47,57 @@ function ensureClient(): Promise<void> {
 }
 
 export async function connect(interaction: any) {
-  try {
-    await ensureClient();
-  } catch (err) {
-    console.error('[connect] client error', err);
-    return {
-      type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-      data: { content: 'Internal error – bot not ready.', flags: 64 },
-    };
-  }
+  const appId: string = interaction.application_id;
+  const webhookToken: string = interaction.token;
 
-  if (!client) {
-    return {
-      type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-      data: { content: 'Internal error – client unavailable.', flags: 64 },
-    };
-  }
-
-  try {
-    const guild = await client.guilds.fetch(interaction.guild_id);
-    const userId = interaction.member?.user?.id ?? interaction.user?.id;
-    const member = await guild.members.fetch(userId);
-
-    const voiceChannel = member.voice?.channel as VoiceBasedChannel | null;
-    if (
-      !voiceChannel ||
-      (voiceChannel.type !== ChannelType.GuildVoice && voiceChannel.type !== ChannelType.GuildStageVoice)
-    ) {
-      return {
-        type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-        data: { content: 'Join a voice channel first, then use /connect.', flags: 64 },
-      };
-    }
-
-    let connection = getVoiceConnection(guild.id);
-    if (!connection) {
-      connection = joinVoiceChannel({
-        channelId: voiceChannel.id,
-        guildId: guild.id,
-        adapterCreator: guild.voiceAdapterCreator as any,
-        selfDeaf: true,
-      });
-    }
-
+  // Fire-and-forget the heavy work to avoid 3s interaction timeout
+  (async () => {
     try {
-      await entersState(connection, VoiceConnectionStatus.Ready, 15_000);
-    } catch (e) {
-      console.error('[connect] failed to establish voice connection', e);
-      return {
-        type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-        data: { content: 'I couldn’t connect to the voice channel. Try again.', flags: 64 },
-      };
+      await ensureClient();
+      if (!client) throw new Error('Client unavailable');
+
+      const guild = await client.guilds.fetch(interaction.guild_id);
+      const userId = interaction.member?.user?.id ?? interaction.user?.id;
+      const member = await guild.members.fetch(userId);
+
+      const voiceChannel = member.voice?.channel as VoiceBasedChannel | null;
+      if (!voiceChannel || (voiceChannel.type !== ChannelType.GuildVoice && voiceChannel.type !== ChannelType.GuildStageVoice)) {
+        await patchOriginal(appId, webhookToken, { content: 'Join a voice channel first, then use /connect.', flags: 64 }, 'connect');
+        return;
+      }
+
+      let connection = getVoiceConnection(guild.id);
+      if (!connection) {
+        connection = joinVoiceChannel({
+          channelId: voiceChannel.id,
+          guildId: guild.id,
+          adapterCreator: guild.voiceAdapterCreator as any,
+          selfDeaf: true,
+        });
+      }
+
+      try {
+        await entersState(connection, VoiceConnectionStatus.Ready, 15_000);
+      } catch (e) {
+        console.error('[connect] failed to establish voice connection', e);
+        await patchOriginal(appId, webhookToken, { content: 'I couldn’t connect to the voice channel. Try again.', flags: 64 }, 'connect');
+        return;
+      }
+
+      clearIdleDisconnect(guild.id);
+      scheduleIdleDisconnect(guild.id);
+
+      await patchOriginal(appId, webhookToken, { content: `Connected to ${voiceChannel.name}.`, flags: 64 }, 'connect');
+    } catch (err) {
+      console.error('[connect] unexpected error', err);
+      await patchOriginal(appId, webhookToken, { content: 'Failed to connect.', flags: 64 }, 'connect');
     }
+  })();
 
-    // On successful connect, start idle timer
-    clearIdleDisconnect(guild.id);
-    scheduleIdleDisconnect(guild.id);
-
-    return {
-      type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-      data: { content: `Connected to ${voiceChannel.name}.`, flags: 64 },
-    };
-  } catch (err) {
-    console.error('[connect] unexpected error', err);
-    return {
-      type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-      data: { content: 'Failed to connect.', flags: 64 },
-    };
-  }
+  // Immediate defer so Discord doesn’t time out the interaction
+  return {
+    type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE,
+    data: { flags: 64 },
+  };
 }
 

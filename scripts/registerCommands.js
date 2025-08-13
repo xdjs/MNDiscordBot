@@ -3,6 +3,7 @@ import { REST, Routes, SlashCommandBuilder, ChannelType } from 'discord.js';
 
 const token = process.env.DISCORD_BOT_TOKEN;
 const clientId = process.env.DISCORD_CLIENT_ID;
+const guildId = process.env.DISCORD_GUILD_ID; // Optional: when set, registers as guild commands for instant availability
 
 if (!token || !clientId) {
   console.error('DISCORD_BOT_TOKEN and DISCORD_CLIENT_ID must be set');
@@ -78,8 +79,13 @@ const rest = new REST({ version: '10' }).setToken(token);
 
 (async () => {
   try {
-    console.log('Fetching currently registered global commands…');
-    const current = await rest.get(Routes.applicationCommands(clientId));
+    const scope = guildId ? `guild ${guildId}` : 'global';
+    console.log(`Fetching currently registered ${scope} commands…`);
+
+    const routeGet = guildId
+      ? Routes.applicationGuildCommands(clientId, guildId)
+      : Routes.applicationCommands(clientId);
+    const current = await rest.get(routeGet);
 
     const desiredClean = commands.map(stripGeneratedFields);
     const currentClean = (Array.isArray(current) ? current : []).map(stripGeneratedFields);
@@ -91,9 +97,12 @@ const rest = new REST({ version: '10' }).setToken(token);
       return;
     }
 
-    console.log('Changes detected – registering global application (/) commands…');
-    await rest.put(Routes.applicationCommands(clientId), { body: commands });
-    console.log('Successfully registered/updated global commands.');
+    console.log(`Changes detected – registering ${scope} application (/) commands…`);
+    const routePut = guildId
+      ? Routes.applicationGuildCommands(clientId, guildId)
+      : Routes.applicationCommands(clientId);
+    await rest.put(routePut, { body: commands });
+    console.log(`Successfully registered/updated ${scope} commands.${guildId ? ' (Guild commands are instant.)' : ''}`);
   } catch (error) {
     console.error('Failed to register commands:', error);
     process.exit(1);

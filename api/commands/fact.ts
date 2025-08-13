@@ -12,7 +12,7 @@ import {
   entersState,
 } from '@discordjs/voice';
 import { Readable } from 'stream';
-import { FFmpeg } from 'prism-media';
+import prism from 'prism-media';
 import { supabase } from '../lib/supabase.js';
 import { getFunFact } from '../../src/utils/openai.js';
 import { synthesizeSpeech } from '../../src/utils/tts.js';
@@ -158,7 +158,7 @@ export async function fact(interaction: any) {
     // TTS via ElevenLabs
     const webStream = await synthesizeSpeech(`Here is a fun fact. ${factText}`);
     const nodeStream = ReadableFromWeb(webStream);
-    const ffmpeg = new FFmpeg({
+    const ffmpeg = new prism.FFmpeg({
       args: [
         '-analyzeduration', '0',
         '-loglevel', '0',
