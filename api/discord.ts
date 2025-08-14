@@ -15,6 +15,7 @@ import { fact } from './commands/fact.js';
 import { disconnect } from './commands/disconnect.js';
 import { buildWrapPayload } from '../src/utils/wrapPaginator.js';
 import { fetchArtistLinksByName } from '../src/services/artistLinks.js';
+import type { ArtistLinks, ArtistLinksSkipped } from '../src/services/artistLinks.js';
 import { supabase } from './lib/supabase.js';
 
 // History table name for per-user snapshots per post
@@ -42,6 +43,9 @@ async function pickRandomEmoji(): Promise<string> {
 }
 
 const publicKey = process.env.DISCORD_PUBLIC_KEY!;
+function isArtistLinks(info: ArtistLinks | ArtistLinksSkipped | null): info is ArtistLinks {
+  return !!info && !(info as ArtistLinksSkipped).skip;
+}
 
 async function buffer(req: VercelRequest): Promise<Buffer> {
   const chunks: Buffer[] = [];
@@ -343,7 +347,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       //----------Artist bio retrieval----------
       const baseUrl = process.env.BASE_URL || 'https://your-site.com';
       let replyLines: string[] = [`**${artistName}**`];
-      if (info && !(info as any).skip) {
+      if (isArtistLinks(info)) {
         if (info.bio && info.bio.trim().length) {
           replyLines.push(info.bio.trim());
           replyLines.push(`Check out this artist: ${baseUrl}/artist/${info.id}`);
@@ -421,7 +425,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       //----------Artist bio retrieval----------
       const baseUrl = process.env.BASE_URL || 'https://your-site.com';
       let replyLines: string[] = [`**${artistName}**`];
-      if (info && !(info as any).skip) {
+      if (isArtistLinks(info)) {
         if (info.bio && info.bio.trim().length) {
           replyLines.push(info.bio.trim());
           replyLines.push(`Check out this artist: ${baseUrl}/artist/${info.id}`);

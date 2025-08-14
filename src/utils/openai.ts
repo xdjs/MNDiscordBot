@@ -34,8 +34,12 @@ const { OPENAI_API_KEY } = process.env;
 export async function getFunFact(artist: string, track?: string): Promise<string> {
   if (!OPENAI_API_KEY) return `${artist} is cool!`;
 
-  // handle multiple artist names separated by commas or &
-  const artistNames = artist.split(/[,&]/).map(s => s.trim()).filter(Boolean);
+  // Handle multiple artist names for collabs without splitting on commas
+  // Do NOT split on commas to keep names like "Tyler, The Creator" intact
+  const artistNames = artist
+    .split(/\s+&\s+|;|\s+feat\.?\s+|\s+ft\.?\s+/i)
+    .map(s => s.trim())
+    .filter(Boolean);
 
   const lookups: (ArtistLinks | null | { skip: true })[] = [];
   const contextParts: string[] = [];
@@ -76,9 +80,9 @@ export async function getFunFact(artist: string, track?: string): Promise<string
   const basePrompt = fun_fact
     ? fun_fact.replace('{artist}', artist).replace('{track}', track ?? '')
     : track
-    ? `Give me a true, lesser-known fun fact about the song "${track}"(it might be in a different language) OR its credited artist(s) (${artist})
-    (If you cannot find anything about the song, then share a fun fact about the credited artist(s). 
-    If you cannot find anything at all DO NOT SAY "If you have any other questions, feel free to ask!" AT THE END OF YOUR RESPONSE). `
+    ? `Give me a true, lesser-known fun fact about the song "${track}" (it might be in a different language) OR its credited artist(s) (${artist}).
+    If you cannot find anything reliable about the song, share a fun fact about the credited artist(s) instead. Do not include your source in your response.
+    Do NOT mention a different song than "${track}". If unsure about the song, focus on the artist(s). IF YOU CANNOT FIND ANYTHING AT ALL THEN RESPOND WITH "Sorry I couldn't find anything about this song."`
     : `Give me a true, lesser-known fun fact about the artist ${artist}. `;
 
   const prompt =

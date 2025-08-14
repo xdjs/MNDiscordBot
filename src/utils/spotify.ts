@@ -74,3 +74,29 @@ export async function fetchArtistsByTrackId(trackId: string): Promise<string[] |
     return null;
   }
 }
+
+/**
+ * Fetch canonical track details (title and artist names) by Spotify track ID.
+ * Returns null on failure.
+ */
+export async function fetchTrackDetails(trackId: string): Promise<{ name: string; artists: string[] } | null> {
+  const token = await getSpotifyToken();
+  if (!token) return null;
+  try {
+    const res = await fetch(`https://api.spotify.com/v1/tracks/${trackId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) {
+      console.warn('[spotify] track details lookup failed', res.status);
+      return null;
+    }
+    const json: any = await res.json();
+    const name: string | undefined = json?.name;
+    const artists: string[] | undefined = Array.isArray(json?.artists) ? json.artists.map((a: any) => a.name).filter(Boolean) : undefined;
+    if (!name || !artists?.length) return null;
+    return { name, artists };
+  } catch (err) {
+    console.error('[spotify] track details fetch error', err);
+    return null;
+  }
+}

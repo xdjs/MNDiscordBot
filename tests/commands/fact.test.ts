@@ -17,6 +17,12 @@ jest.mock('../../api/lib/supabase.js', () => ({
   },
 }));
 
+// Mock follow-up posting helper used by /fact
+const patchOriginalMock = jest.fn(async () => undefined);
+jest.mock('../../src/utils/discord.js', () => ({
+  patchOriginal: patchOriginalMock,
+}));
+
 let mockMember: any = {};
 let mockGuild: any = {};
 
@@ -61,12 +67,16 @@ jest.mock('@discordjs/voice', () => {
   return mod;
 });
 
-jest.mock('prism-media', () => {
-  const { Transform } = require('stream');
-  class Dummy extends Transform {
-    _transform(chunk: any, _enc: any, cb: any) { this.push(chunk); cb(); }
-  }
-  return { FFmpeg: jest.fn(() => new Dummy()) };
+// Mocks to support new ffmpeg pipeline
+jest.mock('ffmpeg-static', () => 'ffmpeg');
+jest.mock('child_process', () => {
+  const { PassThrough } = require('stream');
+  return {
+    spawn: jest.fn(() => ({
+      stdin: new PassThrough(),
+      stdout: new PassThrough(),
+    })),
+  };
 });
 
 // TTS web stream mock
@@ -82,29 +92,45 @@ jest.mock('../../src/utils/tts.js', () => ({
 import { fact } from '../../api/commands/fact.js';
 
 describe('/fact command', () => {
-  const interaction = { guild_id: 'g1', member: { user: { id: 'u1' } } } as any;
+  const interaction = { guild_id: 'g1', member: { user: { id: 'u1' } }, application_id: 'app', token: 'tok' } as any;
 
   it('asks user to join VC if not in one', async () => {
     mockMember.voice.channel = null;
     const res = await fact(interaction);
+    expect(res.type).toBe(InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE);
     expect(res.data.flags).toBe(64);
-    expect(res.data.content).toMatch(/Join a voice channel/);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(patchOriginalMock).toHaveBeenCalled();
+    const calls = (patchOriginalMock as any).mock.calls as any[];
+    const last = calls[calls.length - 1];
+    const body = last && last[2];
+    expect(body && body.content).toMatch(/Join a voice channel/);
   });
 
   it('returns error if no Spotify activity', async () => {
     mockMember.voice.channel = { id: 'vc1', name: 'General', type: 2 };
     mockMember.presence.activities = [];
     const res = await fact(interaction);
+    expect(res.type).toBe(InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE);
     expect(res.data.flags).toBe(64);
-    expect(res.data.content).toMatch(/cannot detect/);
+    await new Promise((r) => setTimeout(r, 0));
+    const calls = (patchOriginalMock as any).mock.calls as any[];
+    const last = calls[calls.length - 1];
+    const body = last && last[2];
+    expect(body && body.content).toMatch(/cannot detect/i);
   });
 
   it('plays a fact when listening', async () => {
     mockMember.voice.channel = { id: 'vc1', name: 'General', type: 2 };
     mockMember.presence.activities = [{ type: 'LISTENING', name: 'Spotify', details: 'Song', state: 'Artist' }];
     const res = await fact(interaction);
+    expect(res.type).toBe(InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE);
     expect(res.data.flags).toBe(64);
-    expect(res.data.content).toContain('🎶');
+    await new Promise((r) => setTimeout(r, 0));
+    const calls = (patchOriginalMock as any).mock.calls as any[];
+    const last = calls[calls.length - 1];
+    const body = last && last[2];
+    expect(body && body.content).toContain('🎶');
   });
 });
 
