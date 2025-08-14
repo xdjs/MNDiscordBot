@@ -1,25 +1,12 @@
 import { InteractionResponseType } from 'discord-interactions';
-import { Client, GatewayIntentBits, ActivityType, ChannelType, VoiceBasedChannel } from 'discord.js';
-import {
-  joinVoiceChannel,
-  createAudioPlayer,
-  createAudioResource,
-  getVoiceConnection,
-  NoSubscriberBehavior,
-  StreamType,
-  AudioPlayerStatus,
-  VoiceConnectionStatus,
-  entersState,
-} from '@discordjs/voice';
-import { supabase } from '../lib/supabase.js';
-import { scheduleIdleDisconnect, clearIdleDisconnect } from '../../src/utils/voiceIdle.js';
-import { speakFactInVoice } from '../../src/utils/speakFact.js';
-import { patchOriginal } from '../../src/utils/discord.js';
+import { Client, GatewayIntentBits, ChannelType, VoiceBasedChannel } from 'discord.js';
+import { joinVoiceChannel, getVoiceConnection, VoiceConnectionStatus, entersState } from '@discordjs/voice';
 import 'dotenv/config';
+import { patchOriginal } from '../../src/utils/discord.js';
+import { startGuildListening, stopGuildListening, isGuildListening } from '../../src/utils/wakeWord.js';
 
 let client: Client | undefined;
 let readyPromise: Promise<void> | undefined;
-let playersByGuild = new Map<string, ReturnType<typeof createAudioPlayer>>();
 
 function ensureClient(): Promise<void> {
   if (client && client.isReady()) return Promise.resolve();
@@ -54,25 +41,10 @@ function ensureClient(): Promise<void> {
   return readyPromise;
 }
 
-//the audio player for the fact command (same as nerdout)
-function getOrCreatePlayer(guildId: string) {
-  let p = playersByGuild.get(guildId);
-  if (!p) {
-    p = createAudioPlayer({ behaviors: { noSubscriber: NoSubscriberBehavior.Play } });
-    p.on('error', (e) => console.error('[fact] player error', e));
-    p.on(AudioPlayerStatus.Idle, () => {
-      // Optional: could disconnect after some idle time
-    });
-    playersByGuild.set(guildId, p);
-  }
-  return p;
-}
-
-export async function fact(interaction: any) {
+export async function listen(interaction: any) {
   const appId: string = interaction.application_id;
   const webhookToken: string = interaction.token;
 
-  // Run the heavy work asynchronously to avoid 3s interaction timeout
   (async () => {
     try {
       await ensureClient();
@@ -84,43 +56,45 @@ export async function fact(interaction: any) {
 
       const voiceChannel = member.voice?.channel as VoiceBasedChannel | null;
       if (!voiceChannel || (voiceChannel.type !== ChannelType.GuildVoice && voiceChannel.type !== ChannelType.GuildStageVoice)) {
-        await patchOriginal(appId, webhookToken, { content: 'Join a voice channel first, then use /fact.', flags: 64 }, 'fact');
+        await patchOriginal(appId, webhookToken, { content: 'Join a voice channel first, then use /listen.', flags: 64 }, 'listen');
         return;
       }
 
-      // Ensure voice connection
       let connection = getVoiceConnection(guild.id);
       if (!connection) {
         connection = joinVoiceChannel({
           channelId: voiceChannel.id,
           guildId: guild.id,
           adapterCreator: guild.voiceAdapterCreator as any,
-          selfDeaf: true,
+          selfDeaf: false,
         });
       }
 
       try {
         await entersState(connection, VoiceConnectionStatus.Ready, 15_000);
       } catch (e) {
-        console.error('[fact] failed to establish voice connection', e);
-        await patchOriginal(appId, webhookToken, { content: 'I couldn’t connect to the voice channel. Try again.', flags: 64 }, 'fact');
+        await patchOriginal(appId, webhookToken, { content: 'I couldn’t connect to the voice channel. Try again.', flags: 64 }, 'listen');
         return;
       }
 
-      // Best-effort: warm DB connections similar to nerdout
-      try { await supabase.from('bot_prompts').select('fun_fact').limit(1).single(); } catch {}
-
-      const factText = await speakFactInVoice(client, guild.id, userId);
-      await patchOriginal(appId, webhookToken, { content: `🎶 ${factText}`, flags: 64 }, 'fact');
+      const toggledOn = !isGuildListening(guild.id);
+      if (toggledOn) {
+        startGuildListening(client, guild.id);
+        await patchOriginal(appId, webhookToken, { content: 'Listening for “bot”…', flags: 64 }, 'listen');
+      } else {
+        stopGuildListening(guild.id);
+        await patchOriginal(appId, webhookToken, { content: 'Stopped listening.', flags: 64 }, 'listen');
+      }
     } catch (err) {
-      console.error('[fact] unexpected error', err);
-      await patchOriginal(appId, webhookToken, { content: 'Failed to speak a fun fact. Please try again.', flags: 64 }, 'fact');
+      console.error('[listen] unexpected error', err);
+      await patchOriginal(appId, webhookToken, { content: 'Failed to toggle listening.', flags: 64 }, 'listen');
     }
   })();
 
-  // Immediate defer so Discord does not time out
   return {
     type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE,
     data: { flags: 64 },
   };
 }
+
+

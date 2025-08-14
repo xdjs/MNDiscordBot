@@ -2,6 +2,7 @@ import { InteractionResponseType } from 'discord-interactions';
 import { Client, GatewayIntentBits } from 'discord.js';
 import { getVoiceConnection } from '@discordjs/voice';
 import { clearIdleDisconnect } from '../../src/utils/voiceIdle.js';
+import { stopGuildListening } from '../../src/utils/wakeWord.js';
 import 'dotenv/config';
 
 let client: Client | undefined;
@@ -69,6 +70,7 @@ export async function disconnect(interaction: any) {
     }
     conn.destroy();
     clearIdleDisconnect(guildId);
+    try { stopGuildListening(guildId); } catch {}
     return {
       type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
       data: { content: 'Disconnected from the voice channel.', flags: 64 },

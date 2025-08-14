@@ -72,7 +72,7 @@ export async function connect(interaction: any) {
           channelId: voiceChannel.id,
           guildId: guild.id,
           adapterCreator: guild.voiceAdapterCreator as any,
-          selfDeaf: true,
+          selfDeaf: false,
         });
       }
 

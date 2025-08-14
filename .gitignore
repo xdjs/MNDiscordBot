@@ -4,4 +4,8 @@ dist/
 
 # Environment files
 .env
-.env.* 
+.env.*
+
+# Whisper files
+bin/whisper.exe
+models/*.bin 

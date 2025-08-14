@@ -30,6 +30,10 @@ const commands = [
     .setDescription('Speak a fun music fact in your voice channel (ephemeral ack)')
     .setDMPermission(false),
   new SlashCommandBuilder()
+    .setName('listen')
+    .setDescription('Toggle voice listening with wake word “bot” (VC only)')
+    .setDMPermission(false),
+  new SlashCommandBuilder()
     .setName('disconnect')
     .setDescription('Disconnect the bot from the voice channel')
     .setDMPermission(false),

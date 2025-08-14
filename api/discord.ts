@@ -89,6 +89,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       case 'fact':
         response = await fact(interaction);
         break;
+      case 'listen':
+        // Will be implemented in api/commands/listen.ts
+        {
+          const mod = await import('./commands/listen.js');
+          response = await mod.listen(interaction);
+        }
+        break;
 
       case 'eavesdrop':
         response = await eavesdrop(interaction);
